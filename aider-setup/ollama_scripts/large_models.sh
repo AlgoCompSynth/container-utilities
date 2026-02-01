@@ -3,20 +3,19 @@
 set -e
 
 echo "*** Large Models ***"
-
+echo "..Large models require between 16 GB and 24 GB"
 export LOGFILES=$HOME/Logfiles
 mkdir --parents $LOGFILES
 
 for model in \
-  codestral:22b \
-  deepseek-coder-v2:16b \
-  devstral-small-2:24b \
   glm-4.7-flash:q4_K_M \
-  gpt-oss:20b \
-  qwen3-coder:30b
+  nemotron-3-nano:30b-a3b-q4_K_M \
+  gemma3:27b-it-qat \
+  qwen3-coder:30b-a3b-q4_K_M \
+  cogito:32b-v1-preview-qwen-q4_K_M
 
 do
-  echo "pulling $model"
+  echo "..pulling $model"
   /usr/bin/time ollama pull $model \
     > $LOGFILES/$model.log 2>&1
 
