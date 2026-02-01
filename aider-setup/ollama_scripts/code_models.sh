@@ -18,7 +18,8 @@ for model in \
   deepcoder:14b-preview-q4_K_M \
   starcoder2:15b-q4_0 \
   deepseek-coder-v2:16b-lite-instruct-q4_0 \
-  granite-code:34b-instruct-q4_0
+  granite-code:34b-instruct-q4_0 \
+  wizardcoder:33b-v1.1-q4_0
 
 do
   echo "pulling $model"
