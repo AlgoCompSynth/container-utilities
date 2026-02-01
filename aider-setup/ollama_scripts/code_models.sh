@@ -28,7 +28,7 @@ do
 
 done
 
-list_models.sh
+ollama list
 
 echo "*** Finished Code Models ***"
 echo ""

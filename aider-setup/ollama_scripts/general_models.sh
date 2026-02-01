@@ -10,7 +10,10 @@ mkdir --parents $LOGFILES
 for model in \
   glm-4.7-flash:q4_K_M \
   nemotron-3-nano:30b-a3b-q4_K_M \
-  gpt-oss:20b
+  gpt-oss:20b \
+  magistral:24b-small-2506-q4_K_M \
+  qwen3:30b-a3b-thinking-2507-q4_K_M \
+  deepseek-r1:32b-qwen-distill-q4_K_M
 
 do
   echo "pulling $model"
@@ -19,7 +22,7 @@ do
 
 done
 
-list_models.sh
+ollama list
 
 echo "*** Finished General Models ***"
 echo ""
