@@ -10,7 +10,6 @@ mkdir --parents $LOGFILES
 for model in \
   glm-4.7-flash:q4_K_M \
   nemotron-3-nano:30b-a3b-q4_K_M \
-  gemma3:27b-it-qat \
   gpt-oss:20b
 
 do
