@@ -3,12 +3,12 @@
 set -e
 
 echo "..Installing Homebrew"
-sudo NONINTERACTIVE=1 /bin/bash -c \
+/bin/bash -c \
   "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-echo >> $HOME/.bashrc
+echo | tee --append $HOME/.profile >> $HOME/.bashrc
 echo \
   'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' \
-  >> $HOME/.bashrc
+  | tee --append $HOME/.profile >> $HOME/.bashrc
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"
 
 echo "..Installing starship"
@@ -22,3 +22,4 @@ echo "..Installing CascadyiaCove nerd font"
 ./nerd_fonts.sh
 
 echo "..Finished"
+echo ""
