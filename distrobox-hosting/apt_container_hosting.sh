@@ -12,9 +12,12 @@ rm --force $LOGFILE
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get install -qqy \
   apt-file \
+  curl \
   plocate \
   podman \
   uidmap \
+  vim \
+  wget \
   >> $LOGFILE 2>&1
   sudo apt-file update \
   >> $LOGFILE 2>&1
