@@ -14,4 +14,4 @@ popd > /dev/null
 mkdir --parents $HOME/.config
 cp starship.toml $HOME/.config/starship.toml
 
-echo 'eval "$(starship init bash)"' >> $HOME/.bashrc
+echo 'eval $($HOME/.local/bin/starship init bash)' >> $HOME/.bashrc
