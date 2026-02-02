@@ -11,6 +11,8 @@ rm --force $LOGFILE
 
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get install -qqy \
+  apt-file \
+  plocate \
   podman \
   uidmap \
   >> $LOGFILE 2>&1
