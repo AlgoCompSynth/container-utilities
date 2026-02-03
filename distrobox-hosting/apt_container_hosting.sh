@@ -15,6 +15,7 @@ sudo apt-get install -qqy \
   curl \
   plocate \
   podman \
+  time \
   uidmap \
   vim \
   wget \
