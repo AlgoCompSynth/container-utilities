@@ -11,7 +11,7 @@ export LOGFILE=$LOGFILES/dnf_container_hosting.log
 rm --force $LOGFILE
 
 sudo dnf install -y \
-  neovin \
+  neovim \
   podman \
   vim \
   >> $LOGFILE 2>&1

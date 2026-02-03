@@ -9,9 +9,10 @@ pushd $HOME/Projects > /dev/null
   git clone https://github.com/89luca89/distrobox.git \
     >> $LOGFILE 2>&1
   cd distrobox
-  sudo ./install \
+  ./install \
     >> $LOGFILE 2>&1
 popd > /dev/null
+which distrobox
 distrobox --version
 
 echo "** Finished Distrobox **"
