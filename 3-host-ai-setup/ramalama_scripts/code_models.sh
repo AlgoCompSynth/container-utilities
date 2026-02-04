@@ -16,6 +16,8 @@ do
   echo "pulling $model"
   /usr/bin/time ramalama pull $model \
     > $LOGFILES/$model.log 2>&1
+  echo "checking $model"
+  ramalama run $model < /dev/null
 
 done
 

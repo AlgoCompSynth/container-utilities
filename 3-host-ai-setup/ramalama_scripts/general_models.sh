@@ -8,17 +8,20 @@ export LOGFILES=$HOME/Logfiles
 mkdir --parents $LOGFILES
 
 for model in \
-  glm-4.7-flash:q4_K_M \
-  qwen3-vl:32b-thinking-q4_K_M \
-  nemotron-3-nano:30b-a3b-q4_K_M \
-  gpt-oss:20b \
-  magistral:24b-small-2506-q4_K_M \
-  deepseek-r1:32b-qwen-distill-q4_K_M
+  huggingface://Qwen/Qwen3-VL-32B-Thinking-GGUF \
+  huggingface://zai-org/GLM-4.7-Flash-GGUF \
+  huggingface://nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16-GGUF \
+  huggingface://openai/gpt-oss-20b-GGUF \
+  magistral:24b \
+  deepseek-r1:32b
 
 do
   echo "pulling $model"
+  bname=$(basename $model)
   /usr/bin/time ramalama pull $model \
-    > $LOGFILES/$model.log 2>&1
+    > $LOGFILES/$bname.log 2>&1
+  echo "checking $model"
+  ramalama run $model < /dev/null
 
 done
 
