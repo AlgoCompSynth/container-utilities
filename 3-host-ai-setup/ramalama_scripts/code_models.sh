@@ -14,12 +14,12 @@ for model in \
 
 do
   echo "pulling $model"
-  /usr/bin/time ollama pull $model \
+  /usr/bin/time ramalama pull $model \
     > $LOGFILES/$model.log 2>&1
 
 done
 
-ollama list
+ramalama list
 
 echo "*** Finished Code Models ***"
 echo ""

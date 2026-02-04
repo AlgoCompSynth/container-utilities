@@ -12,6 +12,6 @@ for model in \
 
 do
   echo "$model:"
-  /usr/bin/time ollama run $model < prompt.txt > $model.ranking
+  /usr/bin/time ramalama run $model < prompt.txt > $model.ranking
 
 done
