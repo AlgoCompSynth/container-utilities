@@ -17,5 +17,8 @@ echo "..Installing aider"
 /usr/bin/time aider-install \
   >> $LOGFILE 2>&1
 
+echo "..Setting OLLAMA_API_BASE=http://127.0.0.1:11434 in $HOME/.bashrc"
+echo "export OLLAMA_API_BASE=http://127.0.0.1:11434" >> $HOME/.bashrc
+
 echo "..Finished"
 echo ""
