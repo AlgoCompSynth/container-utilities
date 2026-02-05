@@ -1,0 +1,19 @@
+# you should not need to change anything below here.
+
+if [[ $(which nvidia-smi | wc -l) == "0" ]]
+then
+  export COMPUTE_MODE=CPU; echo "COMPUTE_MODE: $COMPUTE_MODE"
+
+else
+  export COMPUTE_MODE=CUDA; echo "COMPUTE_MODE: $COMPUTE_MODE"
+
+fi
+
+export DBX_CONTAINER_IMAGE="docker.io/library/debian:trixie-backports"
+
+export DBX_CONTAINER_NAME="AI-Tools-$COMPUTE_MODE"
+export DBX_CONTAINER_HOME_PREFIX="$HOME/dbx-homes"
+export DBX_CONTAINER_DIRECTORY="$DBX_CONTAINER_HOME_PREFIX/$DBX_CONTAINER_NAME"
+
+# Logfile directory for installers
+export LOGFILES=$HOME/Logfiles; mkdir --parents $LOGFILES

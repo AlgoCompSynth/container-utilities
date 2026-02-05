@@ -10,8 +10,8 @@ rm --force $LOGFILE
 echo "..Installing ollama"
 curl -fsSL https://ollama.com/install.sh | sh
 
-echo "..Copying ollama scripts to $HOME/.local/bin/"
-cp ollama_scripts/*.sh $HOME/.local/bin/
+#echo "..Copying ollama scripts to $HOME/.local/bin/"
+#cp ollama_scripts/*.sh $HOME/.local/bin/
 
 echo "..Finished"
 echo ""

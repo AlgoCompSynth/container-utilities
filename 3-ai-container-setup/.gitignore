@@ -1,2 +1,3 @@
 *.log
 .aider*
+distrobox.ini

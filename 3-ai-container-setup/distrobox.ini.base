@@ -1,0 +1,7 @@
+init=true
+root=false
+replace=true
+start_now=true
+additional_packages="apt-file build-essential curl git info lsb-release lynx plocate speedtest-cli time tree unzip vim wget"
+additional_packages="keyboard-configuration libicu-dev"
+additional_packages="systemd libpam-systemd neovim pciutils python3-venv usbutils zstd"

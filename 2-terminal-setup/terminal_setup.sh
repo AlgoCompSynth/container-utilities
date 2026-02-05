@@ -4,6 +4,7 @@ set -e
 
 echo "..adding aliases to $HOME/.bashrc"
 cat bash_aliases >> $HOME/.bashrc
+source bash_aliases
 
 echo "..Installing starship"
 ./starship.sh
