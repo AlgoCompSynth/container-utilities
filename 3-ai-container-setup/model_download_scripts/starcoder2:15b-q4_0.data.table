@@ -1,0 +1,4 @@
+
+Please write an R program using data.table to group offices by city, then calculate the count of employees in each city. The result should be named 'result'.
+
+

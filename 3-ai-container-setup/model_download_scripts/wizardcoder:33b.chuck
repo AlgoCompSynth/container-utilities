@@ -1,0 +1,17 @@
+ChucK uses the simple syntax and powerful capabilities of modern audio programming languages to create unique sounds. Here is an example that sends a middle C tone (261.63 Hz) through the system's DAC for one second:
+
+```chuck
+// Define frequency of Middle C (261.63 Hz).
+500::Hz => float freq;
+// Set duration to send signal for.
+1::second => duration time;
+
+// Generate triangle wave and send it to the DAC for 'duration' amount of time.
+while(now() < time) {
+    // Create a new triangle wave at frequency 'freq'.
+    Triangle t => dac;
+    261.63 => t.freq;
+}
+```
+This will create a middle C tone for one second, then exit the program. This is a basic example and does not handle any error or corner cases you might encounter in a full application. Be sure to replace `Triangle` with another waveform if you want something other than a triangle wave. 
+

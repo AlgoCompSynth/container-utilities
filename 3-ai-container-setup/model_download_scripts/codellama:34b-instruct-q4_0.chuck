@@ -1,0 +1,23 @@
+  Sure! Here is a basic ChucK program that sends a one-second middle C triangle wave to the DAC:
+
+// Triangle Wave Test
+
+// Define the oscillator and its parameters
+Osc s => dac; // Connect the oscillator to the DAC
+
+1.0 => float freq; // Set the frequency to 1 Hz (middle C)
+freq /= 2 => s.freq; // Divide the frequency by two to get a triangle wave
+
+// Define the duration of the test in seconds
+1.0 => float duration; // Set the duration to one second
+duration * s.sampleRate() => int end; // Calculate the number of samples for the duration
+
+// Start the oscillator and wait for the duration
+s.sync(2); // Synchronize the oscillator with the DAC
+s.start(); // Start the oscillator
+end::samp => now; // Wait for the duration in samples
+
+// Stop the oscillator and disconnect it from the DAC
+s.stop(); // Stop the oscillator
+s.disconnect(); // Disconnect the oscillator from the DAC
+

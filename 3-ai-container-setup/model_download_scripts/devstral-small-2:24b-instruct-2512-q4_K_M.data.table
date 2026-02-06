@@ -1,0 +1,20 @@
+Here's an R program using the `data.table` package to read a CSV file named 'offices.csv' into a data.table called 'offices':
+
+```r
+# Load the data.table package
+library(data.table)
+
+# Read the CSV file into a data.table
+offices <- fread("offices.csv")
+
+# Print the first few rows to verify the data was read correctly
+print(head(offices))
+```
+
+This program:
+1. Loads the `data.table` package (which includes the `fread` function for fast CSV reading)
+2. Uses `fread()` to read the 'offices.csv' file into a data.table object called 'offices'
+3. Prints the first few rows of the data.table to verify the import was successful
+
+The `fread()` function is generally faster than base R's `read.csv()` and automatically detects column types, making it ideal for working with data.tables.
+

@@ -1,0 +1,83 @@
+Thinking...
+We need to respond with R code that reads CSV into data.table. Provide example, maybe mention setting path and reading, converting to data.table. Also can show optional fread usage. Should be straightforward.
+...done thinking.
+
+Below is a minimal, yet fully‑featured **R script** that uses the `data.table` package (and its fast `fread()` function) to import a CSV file named **`offices.csv`** into a `data.table` object called `offices`.
+
+```r
+# ------------------------------------------------------------
+# 1. Load the required package
+# ------------------------------------------------------------
+# If you do not have data.table installed yet, uncomment the next line:
+# install.packages("data.table")
+
+library(data.table)   # loads data.table and makes fread() available
+
+# ------------------------------------------------------------
+# 2. (Optional) Set a working directory or define a full path
+# ------------------------------------------------------------
+# Replace with the folder where offices.csv lives, if you are not already there.
+# setwd("C:/path/to/your/folder")   # Windows example
+# setwd("/home/user/data")          # Linux / macOS example
+
+# ------------------------------------------------------------
+# 3. Read the CSV into a data.table object named `offices`
+# ------------------------------------------------------------
+offices <- fread(
+    input   = "offices.csv",       # file name (relative) or full path
+    sep     = ",",                 # default, but explicit is safe
+    header  = TRUE,                # first row contains column names
+    stringsAsFactors = FALSE,      # avoid turning character columns into factors
+    data.table = TRUE              # always returns a data.table (default)
+)
+
+# ------------------------------------------------------------
+# 4. Quick sanity check – look at the first few rows & structure
+# ------------------------------------------------------------
+print(head(offices))               # show the first 6 rows
+glimpse(offices)                   # from the `dplyr` package (optional)
+str(offices)                       # R base structure summary
+
+# ------------------------------------------------------------
+# 5. (Optional) Do a tiny bit of preprocessing – e.g., convert date columns,
+#    rename, filter, etc.
+# ------------------------------------------------------------
+
+# Example: if you know the file contains a column called "open_date" that
+# is stored as character but should be Date:
+# offices[ , open_date := as.Date(open_date, format = "%Y-%m-%d") ]
+
+# ------------------------------------------------------------
+# 6. The object `offices` is now ready for analysis/modelling.
+# ------------------------------------------------------------
+```
+
+### What the script does
+
+| Step | Action |
+|------|--------|
+| **1** | Loads `data.table`. Install it if you haven’t already. |
+| **2** *(optional)* | Sets a working directory so you can use a relative path (`"offices.csv"`). Omit or adjust as needed. |
+| **3** | Reads the CSV with `fread()`. This function is *fast* (uses C‑level parsing) and automatically infers data types, creating a true `data.table`. The result is stored in `offices`. |
+| **4** | Prints the first rows so you can verify the import was successful. |
+| **5** *(optional)* | Shows how you might immediately convert or clean columns if needed. |
+| **6** | Leaves `offices` as a ready‑to‑use `data.table` object for any downstream analysis. |
+
+---
+
+#### Why use `fread()` / `data.table`?
+
+* **Speed** – reads large CSVs (hundreds of MB to many GB) in seconds.
+* **Memory efficiency** – works by reference, so no copy‑on‑modify overhead.
+* **Syntax elegance** – you can chain operations (`offices[Sales > 1e6]`), but even a simple import is only one line.
+
+If you ever need to read only a subset of columns or skip rows, `fread()` also supports those options:
+
+```r
+# Example: skip first 5 lines and read only two columns
+offices <- fread("offices.csv", select = c("OfficeID", "Revenue"),
+                 skip = "header")   # reads the header line as data, so you can specify later
+```
+
+Feel free to adapt the script to your exact file location, encoding (`fileEncoding = "UTF-8"`), or delimiter (e.g., `sep = "\t"` for TSV). Happy analyzing!
+

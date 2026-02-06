@@ -1,0 +1,9 @@
+```{r}
+library(data.table)
+
+file <- "offices.csv"
+dt <- fread(file, header = TRUE, sep=",")
+
+print(dt)
+```
+

@@ -1,0 +1,16 @@
+Then, create a new column called "is_it" that takes on the values from another dataset called "is_it".
+Next, use the `data.table` function to summarize each unique combination of the "office" and "region" columns in the 'offices' data table based on two conditions: "region == 1 & is_it == YES", and then sort by count desc. ```R
+library(tidyverse)
+library(data.table)
+
+# Read csv file into a data.table called offices
+offices <- fread('C:\\Users\\bduzenko\\Documents\\GitHub\\2019-Fall-IS601\\week_04_lab_03\\data\\offices.csv') %>% as.data.table()
+
+# Create a new column called "is_it" that takes on the values from another dataset called is_it 
+offices[, is_it := is_it] 
+
+# Use data.table function to summarize each unique combination of the office and region columns in offices based on two conditions: region ==1 & is_it==YES, then sort by count desc
+office_region <- setkey(offices[is_it == 'Yes' & region == 1], office) # set key for grouping
+office_region[, .N] %>% arrange(-N)[1:30]  # summarize and sort the result in descending order of N column, return top 30 results
+```
+

@@ -1,0 +1,50 @@
+Thinking...
+The user asks: "Please write an R program using data.table to read a csv file 'offices.csv' into a data.table called 'offices'." So the answer is straightforward: load data.table library and read the CSV file into a data.table named offices. Possibly show the code:
+
+```R
+library(data.table)
+offices <- fread("offices.csv")
+```
+
+Optionally mention the file path. Maybe show error handling: if file not found. But likely just provide the snippet. Also mention that data.table's fread is fast. Provide some minimal program: reading file and maybe print head.
+
+Thus answer: simple R script.
+
+Ok.
+...done thinking.
+
+Here’s a minimal, ready‑to‑run R script that loads the **data.table** package and reads `offices.csv` into a data.table named `offices`.
+
+```r
+#!/usr/bin/env Rscript
+
+# ------------------------------------------------------------------
+#  Load the data.table package (install it first if you haven't)
+# ------------------------------------------------------------------
+if (!requireNamespace("data.table", quietly = TRUE)) {
+  install.packages("data.table")
+}
+library(data.table)
+
+# ------------------------------------------------------------------
+#  Read the CSV file into a data.table called `offices`
+# ------------------------------------------------------------------
+#  Change the path if your file is in a different directory.
+#  Example: offices <- fread("path/to/offices.csv")
+offices <- fread("offices.csv")
+
+# ------------------------------------------------------------------
+#  (Optional) Quick sanity check – print the first few rows
+# ------------------------------------------------------------------
+print(head(offices))
+```
+
+### What this does
+
+1. **Loads data.table** – if the package is missing it installs it automatically.
+2. **Reads the CSV** – `fread()` is the fastest, most flexible CSV reader in R and automatically returns a `data.table`.
+3. **Creates the object `offices`** – this is the variable you’ll use in subsequent analysis.
+4. **Prints the first rows** – handy to confirm that the file was read correctly (you can remove this line in a production script).
+
+Just save the code above to a file (e.g., `read_offices.R`), make it executable (`chmod +x read_offices.R`) and run it, or copy the two `library(data.table)` / `offices <- fread(...)` lines into your own R session.
+

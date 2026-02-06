@@ -1,0 +1,16 @@
+Sure, you can use `fread()` function from `data.table` package in R programming language to read a CSV file into a data.table. Here is how it would look like:
+
+```R
+# Ensure data.table package is installed and loaded
+if (!require(data.table)) {
+    install.packages("data.table")
+    library(data.table)
+}
+
+# Set your working directory where 'offices.csv' file resides, if not already
+setwd('/path/to/your/directory')
+
+# Use fread to read the csv into data.table named offices
+offices <- fread('offices.csv')
+``` 
+

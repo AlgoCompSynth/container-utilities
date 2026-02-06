@@ -1,0 +1,24 @@
+Here's an R program using data.table to read the 'offices.csv' file into a data.table called 'offices':
+
+```r
+# Load the data.table package
+library(data.table)
+
+# Read the CSV file into a data.table called 'offices'
+offices <- fread('offices.csv')
+
+# Optional: Display the first few rows to verify the data
+head(offices)
+
+# Optional: Display basic information about the data.table
+str(offices)
+```
+
+This program:
+1. Loads the `data.table` package using `library(data.table)`
+2. Uses the `fread()` function (which is the fast CSV reader function in data.table) to read the CSV file
+3. Stores the result in a data.table object named `offices`
+4. Includes optional commands to display the first few rows and structure of the data for verification
+
+The `fread()` function is preferred over `read.csv()` when working with data.table because it's faster, more robust, and automatically handles many common CSV formatting issues.
+

@@ -1,0 +1,16 @@
+ ```
+ // Sends a 1 second long triangle wave with a frequency of C4 (261.63 Hz)
+// using a Chuck oscillator and a DAC.
+ 
+Dac dac;
+Osc osc;
+ 
+dac.init(0); // initialize DAC to use channel 0
+osc.init(0, 261.63); // initialize osc to generate a triangle wave at C4 (261.63 Hz)
+
+// send the triangle wave to the DAC for one second
+for (int i = 0; i < 8; i++) {
+    dac.write(osc.next()); // send next sample from osc to DAC
+}
+```
+

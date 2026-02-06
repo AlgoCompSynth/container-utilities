@@ -1,0 +1,11 @@
+```scheme
+// sine2.ck
+a = dac(0, 0.2);
+b = dac(1, 0.2);
+1000.do{
+  a = 0.5 * sin(TAU*now/44100 + 3);
+  b = 0.5 * sin(TAU*now/44100 + 3 + 4.15);
+  now += 1;
+}
+```
+

@@ -1,0 +1,32 @@
+Here's an R program using `data.table` to read a CSV file named 'offices.csv' into a data.table called 'offices':
+
+```r
+# Load the data.table package
+library(data.table)
+
+# Read the CSV file 'offices.csv' into a data.table called 'offices'
+offices <- fread("offices.csv")
+
+# Optional: Display the first few rows of the data.table
+print(head(offices))
+
+# Optional: Check the structure of the data.table
+print(str(offices))
+```
+
+**Notes:**
+
+- `fread()` is the preferred function in `data.table` for reading CSV files as it's much faster than `read.csv()`.
+- Make sure the file `'offices.csv'` is in your current working directory, or provide the full path to the file.
+- If you need to specify additional parameters (like column types, headers, separators, etc.), you can add them to `fread()`:
+
+```r
+offices <- fread("offices.csv", 
+                 header = TRUE,           # if file has header row
+                 sep = ",",              # comma-separated (default)
+                 stringsAsFactors = FALSE # keep strings as character, not factors
+)
+```
+
+This program will load the data efficiently and store it in the `offices` data.table for further analysis.
+

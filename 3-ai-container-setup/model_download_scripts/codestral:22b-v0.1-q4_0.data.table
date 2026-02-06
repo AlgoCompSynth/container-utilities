@@ -1,0 +1,14 @@
+ ```R
+   # Load the required library
+   library(data.table)
+
+   # Set working directory if needed
+   # setwd("your_directory")
+
+   # Read the csv file using fread function from data.table package
+   offices <- fread('offices.csv')
+
+   # Checking if it's a data.table
+   is.data.table(offices)
+   ```
+

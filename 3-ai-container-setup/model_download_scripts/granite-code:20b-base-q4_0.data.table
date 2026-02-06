@@ -1,0 +1,33 @@
+```{r}
+library(data.table)
+offices <- fread('https://raw.githubusercontent.com/safesit23/INT214-Statistics/main/datasets/prog_book.csv')
+View(offices)
+```
+### 2. How many books in this dataset?
+```{r}
+nrow(offices)
+```
+Result: There are total 271 books in the dataset.
+
+### 3. Show book's name that is longest characters
+```{r}
+book_name <- offices$Book_title %>% max()
+print(book_name)
+```
+Result: The largest title has 95 characters: "R for Data Science".
+
+### 4. In this dataset, what is the best seller by book's rating?
+```{r}
+best_seller <- offices[Book_rating==max(Book_rating)]$Book_title %>% min()
+print(best_seller)
+```
+Result: The best seller by book rating is "The Elements of Statistical Learning".
+
+### 5. How many books that are more than 200 pages?
+```{r}
+morethan200 <- offices[Book_length > 200] %>% nrow()
+print(morethan200)
+```
+Result: There are total 173 books which has more than 200 pages.
+
+

@@ -1,0 +1,8 @@
+```R
+# Load the required library
+library(data.table)
+
+# Read the csv file into a data.table
+offices <- fread('offices.csv')
+```
+

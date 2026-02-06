@@ -1,0 +1,9 @@
+```r
+library(data.table)
+
+# Read the CSV file into a data.table called 'offices'
+offices <- fread("offices.csv")
+```
+
+This code uses the `fread()` function from the `data.table` package to efficiently read the CSV file named `offices.csv` into a data.table object called `offices`. The `fread()` function is specifically optimized for fast reading of tabular data and is the recommended way to read CSV files when using the `data.table` package.
+

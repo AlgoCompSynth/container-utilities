@@ -1,0 +1,60 @@
+Here's a ChucK program that sends a one-second middle C triangle wave to the DAC:
+
+```chuck
+// Define frequency of middle C (approximately 261.63 Hz)
+float freq = 261.63;
+
+// Create a sine oscillator for phase generation
+SinOsc sine => dac;
+
+// Create a triangle wave using the sine oscillator and a mathematical transformation
+// Triangle wave can be approximated using the arctangent function or by manipulating sine
+// We'll use a common approximation: triangle = (2/pi) * asin(sin(omega * t))
+// But for simplicity and accuracy, we can use a more direct method with a phase accumulator
+
+// Alternatively, use a built-in triangle oscillator
+TriangleOsc tri => dac;
+
+// Set the frequency of the triangle wave
+tri.freq(freq);
+
+// Start the oscillator
+tri => dac;
+
+// Wait for 1 second
+1::second => now;
+
+// Stop the oscillator (optional, but good practice)
+tri.halt();
+```
+
+Wait — there's a simpler and more direct way. Let me provide a cleaner version:
+
+```chuck
+// Define middle C frequency
+261.63 => float freq;
+
+// Create a triangle wave oscillator
+TriangleOsc tri => dac;
+
+// Set frequency to middle C
+tri.freq(freq);
+
+// Let it play for 1 second
+1::second => now;
+
+// Stop the oscillator
+tri.halt();
+```
+
+This program does the following:
+- Creates a `TriangleOsc` object which generates a triangle wave.
+- Connects it to the DAC (digital-to-analog converter) for audio output.
+- Sets the frequency to 261.63 Hz (middle C).
+- Runs for exactly 1 second.
+- Stops the oscillator afterward.
+
+You can run this in the ChucK environment (e.g., chuck command line or chuck GUI) to hear a one-second triangle wave at middle C.
+
+Note: If you want to be more precise about the timing, you can also use `dac => gain => null;` or control gain, but for basic playback, the above is sufficient and standard.
+

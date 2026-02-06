@@ -1,0 +1,24 @@
+ Certainly! Below is a simple ChucK program that generates a one-second long middle C (C4) triangle wave and sends it to the digital-to-analog converter (DAC). 
+
+```chuck
+// Define the frequency for middle C in Hz
+0.0 FREQUENCY_OF_MIDDLE_C => float freq;
+freq * 12.0 / 100.0 => freq; // Convert from octave number to Hz
+
+// Set up the oscillator to generate a triangle wave at the frequency of middle C
+Oscillator osc => dac;
+freq => osc.freq;
+Triangle => osc.waveform; // Use a triangle waveform
+
+// Play the oscillator for one second
+1::second => dur duration;
+duration => now;
+```
+
+This program does the following:
+1. Defines the frequency of middle C (C4), which is approximately 261.63 Hz.
+2. Sets up an oscillator to generate a triangle waveform at this frequency.
+3. Plays the oscillator for one second by setting a duration of one second and waiting until this duration has passed (`now` will be equal to `duration` after one second).
+
+To run this program, you need to have ChucK installed on your computer. Save the code in a file with a `.ck` extension (e.g., `middle_c.ck`) and then execute it using the ChucK command line tool or an IDE that supports ChucK.
+

@@ -1,0 +1,19 @@
+ Here is a simple Chuck program that generates a one-second triangle wave for middle C (about 261 Hz) and sends it to the DAC:
+
+```chuck
+// set sample rate to 48kHz
+48000 => now;
+
+// create a sine wave oscillator with frequency of 261 Hz
+Oscil sineOsc => dac;
+261.0 => sineOsc.freq;
+
+// create a triangle wave from the sine wave using rectify and abs functions
+sineOsc >> rectify >> abs >> dac;
+
+// sleep for one second to let the sound play
+1::second => now;
+```
+
+   In this program, we first set the sample rate to 48kHz, which is a common sampling rate used in digital audio. Then we create an oscillator that generates a sine wave with a frequency of 261 Hz (middle C). We then pass the sine wave through a rectify function, which clips negative values to zero and leaves positive values unchanged, creating a half-wave rectangle signal. This half-wave rectangle signal is passed through an abs function, which takes the absolute value of each sample, creating a triangle wave with peak amplitude equal to the maximum possible output voltage (1.0). Finally, we send this triangle wave to the DAC and sleep for one second to let it play.
+

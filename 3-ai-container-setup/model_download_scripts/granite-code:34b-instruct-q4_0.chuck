@@ -1,0 +1,38 @@
+// This example is from _Chuck_ example 3.2, pp49-50
+
+// Here's a sawtooth table.
+float saw[65536];
+
+// Define an alias for the table size
+int N = tablesize(saw);
+
+// The sawtooth wave is defined by a function.
+// Here we have defined it in ChucK as 'sawFunc()'. 
+// This function returns a float between -1 and +1.
+float sawFunc() {
+  // get the index into the table
+  int n = (int) ((now() % 1000)*N);
+
+  // return a sawtooth value at that point in time
+  return saw[n];
+}
+
+// The triangle wave is defined by accumulating sawtooth values.
+float triFunc() {
+  float val = 0;
+  for( int i=0; i<512; i++ ) 
+    val += sawFunc();
+  return val/512.0;
+}
+
+// the ChucK system will call this function when the program starts up
+void setup() {
+  // fill our sawtooth table with a sawtooth wave
+  for( int i=0; i<N; i++ ) 
+    saw[i] = (i/N)*2 - 1.0;
+
+  // set the output function to be our triangle wave
+  dac(triFunc());
+}
+
+
