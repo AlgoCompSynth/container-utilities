@@ -1,9 +1,13 @@
-```{r}
+```{r, message = FALSE}
 library(data.table)
 
-file <- "offices.csv"
-dt <- fread(file, header = TRUE, sep=",")
+offices <- fread('offices.csv')
+homes <- fread('homes.csv')
 
-print(dt)
+setkey(offices, employee_id)
+setkey(homes, employee_id)
+
+result <- homes[offices][, list(employee_id = key, work_address, home_address)]
+fwrite(result, 'result.csv', sep = "|")
 ```
 

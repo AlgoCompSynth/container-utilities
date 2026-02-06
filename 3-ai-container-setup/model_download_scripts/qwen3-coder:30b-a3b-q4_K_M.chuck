@@ -1,77 +1,29 @@
-Here's a ChucK program that sends a one-second middle C triangle wave to the DAC:
+Here's a ChucK program that generates a one-second triangle wave at middle C (261.63 Hz) and sends it to the DAC:
 
 ```chuck
-// Send one-second middle C triangle wave to DAC
-// Middle C is 261.63 Hz
+// Generate a one-second triangle wave at middle C (261.63 Hz)
+// Send to DAC
 
 // Create a triangle wave oscillator
 TriOsc tri => dac;
 
-// Set the frequency to middle C (261.63 Hz)
+// Set the frequency to middle C
 tri.freq(261.63);
 
-// Set the amplitude (volume) - 0.5 is a good starting point
-tri.gain(0.5);
-
 // Play for one second
-1::second => now;
+1.0 => now;
 
 // Stop the sound
-tri => dac;
+tri => blackhole;
 ```
 
-However, here's a more complete version that ensures the sound plays for exactly one second and then stops cleanly:
+This program works by:
 
-```chuck
-// Send one-second middle C triangle wave to DAC
-// Middle C is 261.63 Hz
+1. Creating a `TriOsc` (triangle oscillator) object
+2. Connecting it to the digital-to-analog converter (`dac`)
+3. Setting the frequency to 261.63 Hz (middle C)
+4. Waiting for one second using `1.0 => now`
+5. Finally, routing the oscillator to `blackhole` to stop the sound
 
-// Create a triangle wave oscillator
-TriOsc tri => dac;
-
-// Set the frequency to middle C (261.63 Hz)
-tri.freq(261.63);
-
-// Set the amplitude (volume)
-tri.gain(0.5);
-
-// Play for one second
-1::second => now;
-
-// Clean shutdown - you can also use this alternative:
-// 0 => tri.gain;
-// 0.1::second => now;
-```
-
-Or, if you want to be more explicit about the timing and ensure clean playback:
-
-```chuck
-// Send one-second middle C triangle wave to DAC
-// Middle C is 261.63 Hz
-
-// Create a triangle wave oscillator
-TriOsc tri => dac;
-
-// Set the frequency to middle C (261.63 Hz)
-tri.freq(261.63);
-
-// Set the amplitude (volume)
-tri.gain(0.5);
-
-// Play for exactly one second
-1.0 => float duration;
-duration::second => now;
-
-// The program ends here, which stops the sound
-```
-
-The key components:
-- `TriOsc` creates a triangle wave oscillator
-- `=> dac` sends the signal to the digital-to-analog converter (your speakers/headphones)
-- `freq(261.63)` sets the frequency to middle C
-- `gain(0.5)` controls the volume level
-- `1::second => now` makes the program wait for one second before ending
-- When the program ends, the sound stops naturally
-
-To run this, save it as a `.ck` file and execute it with the ChucK command line: `chuck filename.ck`
+The `now` variable in ChucK represents the current time, and `=> now` pauses execution for the specified time interval. The triangle wave will play for exactly one second at the middle C pitch, then stop automatically.
 

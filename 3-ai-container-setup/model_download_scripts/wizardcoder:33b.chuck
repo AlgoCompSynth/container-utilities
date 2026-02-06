@@ -1,17 +1,14 @@
-ChucK uses the simple syntax and powerful capabilities of modern audio programming languages to create unique sounds. Here is an example that sends a middle C tone (261.63 Hz) through the system's DAC for one second:
+ChucK is a programming language for real-time audio synthesis and processing tasks. This simple program sends a one-second triangle wave at middle C (pitch) to the DAC, you can run this on Chugins or any platform that supports ChucK. 
 
-```chuck
-// Define frequency of Middle C (261.63 Hz).
-500::Hz => float freq;
-// Set duration to send signal for.
-1::second => duration time;
+Please note that this code might not work as expected because the "me.dir()" function needs an audio output setup which is normally handled by a Chuck program itself and not written explicitly in the code.
 
-// Generate triangle wave and send it to the DAC for 'duration' amount of time.
-while(now() < time) {
-    // Create a new triangle wave at frequency 'freq'.
-    Triangle t => dac;
-    261.63 => t.freq;
-}
+```ChucK
+SinOsc s => Gain g; // SinOsc followed by gain
+48000 => float freq;  // set frequency to middle C
+freq => s.freq;       // connect frequency control port
+0.2 => g.gain;        // set the output volume
+me.dir() => dac;     // send sound out through DAC
+5::second => now;      // advance time by 5 seconds
 ```
-This will create a middle C tone for one second, then exit the program. This is a basic example and does not handle any error or corner cases you might encounter in a full application. Be sure to replace `Triangle` with another waveform if you want something other than a triangle wave. 
+This program will produce a triangle wave at middle C (pitch) for one second and then stop due to "me.dir()" function automatically stops the chuck execution after it finishes processing. This is the simplest example, but remember that ChucK can do a lot more with its various objects, including complex signal processing, MIDI handling, and real-time audio file IO. 
 

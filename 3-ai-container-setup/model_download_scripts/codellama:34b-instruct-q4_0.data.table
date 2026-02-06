@@ -1,17 +1,17 @@
-   Here is an example of how you can use the `data.table` package in R to read a CSV file into a data.table:
+  
+Here is an R program that uses data.table to perform the tasks you described:
 ```
 library(data.table)
-offices <- fread("offices.csv")
-```
-This will create a data.table called "offices" containing the data from the "offices.csv" file. The `fread()` function is similar to the `read.csv()` function, but it is much faster and more efficient for large datasets.
 
-You can also specify additional arguments to `fread()` to control how the data is read in. For example, you can use the `header` argument to specify that the first row of the CSV file contains column names:
+# Read in the offices and homes data files
+offices <- fread("offices.csv")
+homes <- fread("homes.csv")
+
+# Join the two tables on the employee_id column
+result <- merge(offices, homes, by = "employee_id", all = FALSE)
+
+# Write the joined table to a new file called result.csv
+fwrite(result, "result.csv")
 ```
-offices <- fread("offices.csv", header = TRUE)
-```
-You can also use the `sep` argument to specify a different separator character (the default is a comma):
-```
-offices <- fread("offices.csv", sep = "\t")
-```
-These are just a few examples of how you can use the `data.table` package in R to read a CSV file into a data.table. There are many other options and arguments that you can use to customize the reading process.
+This program uses the `data.table` package in R to read in the two input files as data tables, join them on the `employee_id` column using the `merge` function, and then write the joined table to a new file called `result.csv`. The `fread` function is used to read in the input files, and the `fwrite` function is used to write the output file. The `by` argument in the `merge` function specifies the column(s) to join on, and the `all` argument is set to `FALSE` to only include rows where the `employee_id` exists in both input tables.
 

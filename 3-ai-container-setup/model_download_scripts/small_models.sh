@@ -24,9 +24,14 @@ for model in \
 
 do
   bname=$(basename $model)
-  echo "checking $model"
-  /usr/bin/time ollama run $model < /dev/null \
-    2>&1 | tee $LOGFILES/$bname.log || true
+
+  echo ""
+  echo "checking $model with ChucK"
+  /usr/bin/time ollama run $model < prompt.ck > $bname.chuck
+
+  echo "checking $model with R"
+  /usr/bin/time ollama run $model < prompt.R > $bname.data.table
+
 
 done
 

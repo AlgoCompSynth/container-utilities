@@ -1,24 +1,30 @@
-Here's an R program using data.table to read the 'offices.csv' file into a data.table called 'offices':
-
 ```r
 # Load the data.table package
 library(data.table)
 
-# Read the CSV file into a data.table called 'offices'
+# Read the offices.csv file into a data.table called 'offices'
 offices <- fread('offices.csv')
 
-# Optional: Display the first few rows to verify the data
-head(offices)
+# Read the homes.csv file into a data.table called 'homes'
+homes <- fread('homes.csv')
 
-# Optional: Display basic information about the data.table
-str(offices)
+# Perform an inner join on 'employee_id' to get only employees present in both tables
+result <- offices[homes, on = 'employee_id', nomatch = 0]
+
+# Write the result to 'result.csv'
+fwrite(result, 'result.csv')
 ```
 
-This program:
-1. Loads the `data.table` package using `library(data.table)`
-2. Uses the `fread()` function (which is the fast CSV reader function in data.table) to read the CSV file
-3. Stores the result in a data.table object named `offices`
-4. Includes optional commands to display the first few rows and structure of the data for verification
+This R program does exactly what you requested:
 
-The `fread()` function is preferred over `read.csv()` when working with data.table because it's faster, more robust, and automatically handles many common CSV formatting issues.
+1. **Reads the CSV files**: Uses `fread()` to read both 'offices.csv' and 'homes.csv' into data.tables called 'offices' and 'homes' respectively.
+
+2. **Performs the join**: Uses the data.table join syntax `offices[homes, on = 'employee_id', nomatch = 0]` which:
+   - Joins the 'offices' table with the 'homes' table
+   - Uses 'employee_id' as the join column
+   - The `nomatch = 0` parameter ensures only rows where the 'employee_id' exists in both tables are included (inner join)
+
+3. **Writes the result**: Uses `fwrite()` to write the joined result to 'result.csv'
+
+The resulting 'result' table will contain only the columns 'employee_id', 'work_address', and 'home_address' for employees who appear in both input files.
 

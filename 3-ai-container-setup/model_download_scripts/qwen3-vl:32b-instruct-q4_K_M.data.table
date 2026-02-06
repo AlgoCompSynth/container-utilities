@@ -1,32 +1,48 @@
-Here's an R program using `data.table` to read a CSV file named 'offices.csv' into a data.table called 'offices':
+Here's an R program using `data.table` to accomplish the requested tasks:
 
 ```r
 # Load the data.table package
 library(data.table)
 
-# Read the CSV file 'offices.csv' into a data.table called 'offices'
-offices <- fread("offices.csv")
+# Read the offices.csv file into a data.table called 'offices'
+offices <- fread("offices.csv", colClasses = c("character", "character"))
 
-# Optional: Display the first few rows of the data.table
-print(head(offices))
+# Read the homes.csv file into a data.table called 'homes'
+homes <- fread("homes.csv", colClasses = c("character", "character"))
 
-# Optional: Check the structure of the data.table
-print(str(offices))
+# Perform an inner join on 'employee_id' to get rows that exist in both tables
+# Keep only the required columns: employee_id, work_address, home_address
+result <- merge(offices, homes, by = "employee_id", all = FALSE)
+
+# Write the result to 'result.csv'
+fwrite(result, "result.csv", colClasses = c("character", "character", "character"), quote = FALSE)
 ```
 
-**Notes:**
+---
 
-- `fread()` is the preferred function in `data.table` for reading CSV files as it's much faster than `read.csv()`.
-- Make sure the file `'offices.csv'` is in your current working directory, or provide the full path to the file.
-- If you need to specify additional parameters (like column types, headers, separators, etc.), you can add them to `fread()`:
+### Explanation:
 
-```r
-offices <- fread("offices.csv", 
-                 header = TRUE,           # if file has header row
-                 sep = ",",              # comma-separated (default)
-                 stringsAsFactors = FALSE # keep strings as character, not factors
-)
-```
+- `fread()` is used to read CSV files efficiently into `data.table` objects.
+- `colClasses = c("character", "character")` ensures both columns are read as character (text) type.
+- `merge(offices, homes, by = "employee_id", all = FALSE)` performs an **inner join** — only keeping rows where `employee_id` exists in **both** tables.
+- `fwrite()` writes the result to CSV, with `quote = FALSE` to avoid surrounding text with quotes if not needed (optional, depending on output preference).
 
-This program will load the data efficiently and store it in the `offices` data.table for further analysis.
+---
+
+### Notes:
+
+- If you want to ensure column names are exactly as specified, you can explicitly assign them:
+  
+  ```r
+  setnames(offices, c("employee_id", "work_address"))
+  setnames(homes, c("employee_id", "home_address"))
+  ```
+
+- If you want to be more explicit about the output columns:
+
+  ```r
+  result <- merge(offices, homes, by = "employee_id", all = FALSE)[, .(employee_id, work_address, home_address)]
+  ```
+
+This is a clean, efficient `data.table` solution for your requirements.
 

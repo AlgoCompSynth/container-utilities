@@ -1,16 +1,19 @@
-Sure, you can use `fread()` function from `data.table` package in R programming language to read a CSV file into a data.table. Here is how it would look like:
+Below is an R program that performs the above tasks using data.table package:
 
 ```R
-# Ensure data.table package is installed and loaded
-if (!require(data.table)) {
-    install.packages("data.table")
-    library(data.table)
-}
+# Required libraries
+library(data.table)
 
-# Set your working directory where 'offices.csv' file resides, if not already
-setwd('/path/to/your/directory')
+# Loading data from csv files into data tables
+offices <- fread("offices.csv")
+homes <- fread("homes.csv")
 
-# Use fread to read the csv into data.table named offices
-offices <- fread('offices.csv')
-``` 
+# Joining two tables on 'employee_id' and saving to a new table
+result <- merge(offices, homes, by = "employee_id")
+
+# Writing the resultant table into csv file
+fwrite(result, "result.csv")
+```
+
+Please note that it is assumed that you have CSV files named 'offices.csv' and 'homes.csv' in your working directory. You may need to provide a full path if they are located elsewhere. 
 
