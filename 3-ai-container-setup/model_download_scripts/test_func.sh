@@ -3,15 +3,15 @@ test_model() {
   bname=$(basename $model)
 
   echo ""
-  echo "checking $model with Pico SDK"
-  /usr/bin/time ollama run $model < prompt.pico-sdk > test_results/$bname.pico-sdk
-  sleep 30
 
-  echo "checking $model with ChucK"
-  /usr/bin/time ollama run $model < prompt.ck > test_results/$bname.chuck
-  sleep 30
+  for suffix in pico-sdk ck R
+  do
+    echo "checking $model with $suffix"
+    /usr/bin/time ollama run $model \
+      < prompt.$suffix \
+      > test_results/$bname.$suffix 2>&1
+    sleep 30
 
-  echo "checking $model with R"
-  /usr/bin/time ollama run $model < prompt.R > test_results/$bname.data.table
-  sleep 30
+  done
+
 }
