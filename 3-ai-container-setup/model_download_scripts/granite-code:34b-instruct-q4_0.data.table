@@ -1,9 +1,0 @@
-```{r}
-library(data.table)
-offices = data.table::fread('offices.csv')
-homes = data.table::fread('homes.csv')
-employee_ids = unique(c(offices$employee_id, homes$employee_id))
-result <- offices[employee_ids, on='employee_id'][homes[employee_ids, on='employee_id']]
-data.table::fwrite(result, 'result.csv')
-```
-
