@@ -1,291 +1,389 @@
 Thinking...
-Okay, so I'm trying to write a Chuck program that sends a one-second triangle wave at middle C to the DAC. Hmm, I've never written anything in Chuck before, but I know it's a programming language for audio processing and music synthesis. Let me think about how to approach this.
+Okay, so I need to write a Chuck program that sends a one-second triangle wave at middle C to the DAC. Hmm, let's break this down step by step.
 
-First, I need to understand what a triangle wave is. From what I remember, a triangle wave is a waveform that alternates between increasing and decreasing linearly, creating a triangular shape when graphed. It's different from a sine wave, which is smooth and has rounded peaks. So in Chuck, I'll probably need to generate this waveform somehow.
+First, I know that Chuck is a programming language for audio processing. It has objects for sounds and can send audio to various outputs, including the DAC (Digital-to-Analog Converter). 
 
-Next, the pitch should be middle C. Middle C is a specific frequency; I think it's 261.63 Hz. So my triangle wave needs to oscillate at that frequency. Since it's one second long, I need to make sure the wave completes the right number of cycles within that second.
+Middle C is a musical note with a specific frequency. I remember that middle C is 261.63 Hz. So I need to generate a sound wave at this frequency.
 
-Chuck has some built-in classes for audio processing, like Synth, which can generate sounds, and dac~ for outputting audio to the soundcard. I think I'll need to create a UGen (Unit Generator) that produces the triangle wave and then connect it to dac~.
+The task mentions a triangle wave. Triangle waves are similar to sine waves but have a different shape, making them sound a bit brighter or harsher. In Chuck, creating a triangle wave can be done using the `Line~` object for shaping and some math functions like `abs()` to create the triangular waveform.
 
-Wait, does Chuck have a built-in Triangle function? I'm not sure, so maybe I can create one using sine or square waves somehow. Alternatively, perhaps I can use a piecewise function to generate the triangle shape manually. Let me think about how to do that.
+The program should play this triangle wave for one second. So I'll need to calculate how many samples are in one second based on the sample rate. Typically, Chuck uses 44.1 kHz as the default sample rate. Each second has 44,100 samples, so I can use `44.1 * 60`? Wait, no, that's not right. Actually, it's just 44,100 samples per second, so for one second, we need to generate 44,100 samples.
 
-A triangle wave can be created by alternating between increasing and decreasing linearly. So for each cycle, I can have a positive slope followed by a negative slope. The period of the wave would be 1/frequency, so for middle C (261.63 Hz), each cycle is about 0.003826 seconds.
+I think the main steps are:
 
-But maybe instead of manually creating each point, there's a smarter way. Oh, wait, I remember that a triangle wave can be represented as the sum of an infinite series of odd harmonics with decreasing amplitudes. But implementing that might be complex for just one second.
+1. Calculate the frequency of middle C.
+2. Determine the sample rate.
+3. Create a triangle wave that cycles at this frequency over one second.
+4. Convert this wave into a signal that can be sent to the DAC.
 
-Alternatively, perhaps I can use the built-in sine function and then apply some kind of non-linear transformation to approximate a triangle wave. I know that applying a tan() function after scaling could create a triangle-like shape, but I'm not sure if that's the best approach.
+In Chuck, the `dac` object handles output to the audio device. To generate the sound, I'll use a `Synth` or create an audio stream with oscillators and modifiers.
 
-Wait, maybe there's a simpler way. Since Chuck is based on SuperCollider, which has UGen classes for various waveforms, perhaps Chuck also includes similar classes. Let me check: yes, in SuperCollider, there's a TriangleCps and TriangleKr UGens for triangle waves with frequency and rate parameters. So I can use something like that in Chuck.
+Wait, but creating a triangle wave from scratch might involve using a phasor (sawtooth) and then applying some processing to turn it into a triangle. Alternatively, maybe there's a simpler way by using the `Triangle~` object if available, but I think in Chuck, it's more about using standard objects.
 
-So the plan is:
+I'll probably use a `SinOsc~` for the oscillator and then shape it into a triangle wave. Or maybe use a combination of line segments to create the triangle.
 
-1. Create an audio context to process the sound.
-2. Generate a triangle wave at 261.63 Hz.
-3. Output this wave to the DAC for one second.
+Wait, another approach: the triangle wave can be created by taking the absolute value of a sine wave with some scaling. But that might not give a perfect triangle. Alternatively, using a `Phasor~` and then applying a `Line~` object for the rising and falling slopes.
 
-Let me structure this step by step.
+Let me outline the code structure:
 
-First, start by creating an AudioContext. That's usually done with `AudioContext audio = new AudioContext();`.
+1. Start with the main function.
+2. Create the DAC object to send audio.
+3. Calculate the frequency of middle C (261.63 Hz).
+4. Determine how many samples are in one second at 44.1 kHz: 44,100 samples.
+5. Create an array that goes from -1 to 1 over this number of samples to form a triangle wave.
+6. Use the `Cycle~` object to repeat this pattern once, but since it's one second, maybe just play it once.
 
-Next, I need to create a Triangle wave oscillator. Since I want to specify the frequency in Hz, I'll use TriangleCps, which expects cycles per second (Hz). So I can do something like:
+Wait, perhaps using `Line~` twice: first to go up from -1 to 1 over half the period and then down again for the next half. So each period is two segments, creating a triangle wave.
 
-`ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);`
+But for middle C at 261.63 Hz, the period is about 0.003826 seconds (1/261.63). Each period has 44,100 / 261.63 ≈ 168.7 samples.
 
-Then, I need to connect this oscillator to the DAC for output. The DAC in Chuck is represented by `dac~`, so I'll create an instance of it and connect the oscillator to its input.
+Wait, but since I need a one-second clip, maybe it's better to generate the entire waveform in memory and then play it as a buffer.
 
-But wait, how do I connect them? In Chuck, you usually chain the objects together using the `to` method or by connecting their buses. So perhaps:
+So, plan:
 
-`triangleOsc.to(new dac~, 0);`
+- Calculate the sample rate: `sr = 44100;`
+- Number of samples for one second: `n = sr * 1;` which is 44100.
+- Create an array `buf` of size `n`.
+- For each sample index `i`, calculate the value as a triangle wave.
 
-This should route the triangle wave from the oscillator to the DAC.
+The formula for a triangle wave can be something like:
 
-Now, since I want this sound to play for exactly one second, I need to schedule when it starts and stops. In Chuck, you can use `start()` and `stop()` methods, but because everything is event-driven, I might need to schedule these events in the future using `schedule()`. Alternatively, perhaps I can create a note object that handles the timing.
+value = (2 * ((i / period) % 1) - 1) * sign
 
-Wait, maybe using a `Note` class would be better here. The Note class can play a specific frequency for a certain duration. So I can create a Note with middle C (127 in MIDI notes), and a duration of 1 second. Then, it will start at time 0 and stop after 1 second.
+But perhaps a better way is to compute the position within the period and then map it to the triangle shape.
 
-So the code might look like:
+Alternatively, since the triangle wave alternates between increasing and decreasing linearly, I can use `Line~` for each slope.
 
-`Note note = new Note(127, 1);`
-`note.play();`
+Wait, but in Chuck, you can't store the samples directly into an array unless you're using buffer~ or something. Maybe a better approach is to create a signal that cycles through the triangle pattern once over one second.
 
-But wait, does the Note class handle the wave shape? No, I think by default, the Note uses a sine wave. So to get a triangle wave, perhaps I need to create a custom synth that uses the TriangleCps oscillator.
+Alternatively, perhaps it's easier to create a single cycle and then loop it, but since it's only one second, which may not be an integer multiple of the period, we'll have some phase shift, but for a one-second clip, it should still play correctly.
 
-Alternatively, maybe using the `Synth` class and setting its waveform to triangle. Let me check: in Chuck, the Synth has an argument for the waveform. The options are probably sine, square, sawtooth, etc., but does it include triangle? If not, I might need to create a custom synth.
+Wait, maybe using `Cycle~` to generate a sawtooth wave and then use `Line~` to create the triangle. Or perhaps using `Saw~` and then applying an absolute value function with scaling.
 
-Alternatively, perhaps using the `Osc` UGen with a specific function. But maybe it's easier to stick with built-in functions if possible.
+But I'm getting a bit stuck here. Let me think differently: in Chuck, to make a triangle wave at middle C for one second, perhaps I can create a `SinOsc~` set to 261.63 Hz, and then use some processing to turn it into a triangle wave. But actually, making a perfect triangle from a sine is not straightforward.
 
-Wait, let me check the Chuck documentation for available UGens and Synths. From what I recall, the default Synth uses sine waves, but you can create other waveforms by chaining different UGens together.
+Alternatively, maybe using the `Triangle~` object if available, but I'm not sure if Chuck has that natively. So perhaps generating a triangle wave manually by creating two lines for each cycle: one going up and one going down.
 
-So perhaps a better approach is:
+Wait, another idea: the triangle wave can be represented as (2/pi) * arcsin(sin(x)), which is more complex than needed. Maybe it's better to generate it step by step.
 
-1. Create an AudioContext.
-2. Use TriangleCps to generate the triangle wave at 261.63 Hz.
-3. Connect this oscillator to a Gain node if necessary (though probably not needed here).
-4. Then, connect it to the DAC.
-5. Schedule when this sound starts and stops.
+So, let me outline the code:
 
-But how do I schedule the start and stop times? In Chuck, you can use the `start()` and `stop()` methods on UGens or Synths. But since we're using a Note-like approach, maybe wrapping it in a Synth is better.
+- Start with `main()`
+- Create a `dac` object for output.
+- Calculate frequency: 261.63 Hz
+- Number of samples per second: 44100
+- For each sample from 0 to 44100:
+   - Compute the position within the period
+   - Determine if it's in the rising or falling edge
+   - Calculate the value accordingly
 
-Alternatively, create a Synth with the triangle wave oscillator as its generator, then play it for one second.
+Wait, but in Chuck, you can't loop through each sample directly without using a `Loop~` object, which might complicate things. Maybe another approach is to create an array of samples and then play them back.
 
-Wait, perhaps using the `Synth` class and specifying the waveform. Let me check if the Synth has a parameter for waveform type. Yes, I think you can pass an integer where 0 is sine, 1 is square, etc., but does it include triangle? If not, then I need to create a custom generator.
+Alternatively, perhaps use the `Saw~` object for the sawtooth and then modulate it with some function to turn into a triangle.
 
-Alternatively, perhaps using `Osc` with a function that maps time to the triangle wave.
+Wait, I'm overcomplicating. Let me think about how to create a single cycle of triangle wave and then repeat it once, but that might not be one second unless the duration is correct.
 
-Wait, maybe another approach: generate the triangle wave manually by creating an oscillator and manually changing its direction after each period. But that seems complicated for just one second.
+Alternatively, perhaps using a `Phasor~` for the frequency and then applying some processing.
 
-Alternatively, since we can use `TriangleCps`, which takes cycles per second (Hz), so setting it to 261.63 should give me the correct frequency.
+Wait, maybe this code:
+
+dac = new Dac();
+sr = dac.getSR(); // get sample rate
+freq = 261.63; // middle C
+
+// Create a triangle wave oscillator
+phasor = new Phasor(freq * 2); // double the frequency for easier calculation?
+line = new Line();
+
+But I'm not sure.
+
+Wait, perhaps using a `Saw~` to create a sawtooth wave and then apply a function to make it triangular. The sawtooth goes from 0 to 1 repeatedly. To turn it into a triangle, you can modulate it with another line that goes up and down.
+
+Alternatively, since the sawtooth is a ramp, I can take its absolute value and scale it appropriately to create a triangle wave.
+
+Wait, here's an idea: use a `Saw~` object at twice the desired frequency. Then, pass this through an absolute value function and then scale it between -1 and 1.
+
+But in Chuck, you can't directly apply functions like abs() to signals unless you're in a processing block. Maybe using a `Function~` object with an expression.
+
+Wait, but I'm getting into more complex territory here. Let me think of a simpler way.
+
+Alternatively, perhaps create a single cycle of the triangle wave manually as a table and then repeat it. Since the DAC can play from a buffer, maybe that's easier.
+
+So, code steps:
+
+1. Calculate sample rate: sr = 44100
+2. Number of samples for one second: n = sr * 1;
+3. Create an array 'buf' of size n.
+4. For each i in 0..n-1:
+   - time = i / sr; // time from 0 to 1 seconds
+   - phase = time * freq;
+   - value = (2 * ((phase) % 1) - 1);
+   - buf[i] = value;
+5. Play the buffer through the DAC.
+
+Wait, but that would create a sawtooth wave because it's just increasing from -1 to 1 each second. To make a triangle, I need to alternate between rising and falling slopes.
+
+So perhaps:
+
+for (int i=0; i < n; i++) {
+    double time = i / sr;
+    double phase = time * freq;
+    double posInCycle = phase % 2; // 0 to 2 for one period
+    if (posInCycle < 1) {
+        buf[i] = 2 * posInCycle - 1; // rising edge
+    } else {
+        buf[i] = 2 * (2 - posInCycle) - 1; // falling edge
+    }
+}
+
+Wait, that might create a triangle wave. Let me test this logic.
+
+At time=0, phase=0, posInCycle=0: value=-1
+
+As i increases, posInCycle goes from 0 to 1, so the value rises linearly from -1 to +1 over half the period.
+
+Then, as posInCycle passes 1 and goes to 2 (which is equivalent to 0), it's in the falling edge, so value goes back from +1 to -1.
+
+Yes, that should create a triangle wave.
+
+So putting this into Chuck code:
+
+// Create buffer
+Buffer buf = new Buffer(44100);
+for (int i=0; i < buf.getSize(); i++) {
+    double time = i / sr;
+    double phase = time * freq;
+    double posInCycle = phase % 2.0;
+    if (posInCycle < 1) {
+        buf.set(i, 2 * posInCycle - 1);
+    } else {
+        buf.set(i, 2 * (2 - posInCycle) - 1);
+    }
+}
+
+// Play buffer through DAC
+dac.play(buf.getStream());
+
+But wait, in Chuck, you can't directly set the buffer like that. You need to create an audio stream from the buffer.
+
+Alternatively, use the `PlayBuf~` object:
+
+buf = new Buffer(44100);
+// fill buf with triangle wave as above
+
+PlayBuf playBuf = new PlayBuf(buf);
+dac.play(playBuf);
+
+But I'm not sure if that's exactly how it works. Alternatively, create a stream from the buffer.
+
+Alternatively, perhaps use the `Line~` object to create the triangle wave over time and route it through the DAC.
+
+Another approach: using a single cycle of the triangle wave, then repeat it for one second by playing it once.
+
+Wait, maybe this is getting too complicated. Let me think about a simpler way. Since I need a one-second clip at middle C as a triangle wave, perhaps use a `Saw~` object to create a ramp and then modulate its amplitude to form the triangle.
+
+Alternatively, here's another idea: using two lines for each cycle—one going up from -1 to +1 and another going down. Since it's one second, I can make this happen once.
+
+Wait, perhaps using `Line~` to go from -1 to +1 over half a second, then another `Line~` to go back from +1 to -1 over the next half second. This would create one full triangle wave cycle in one second.
+
+But middle C is about 261 Hz, so each period is ~0.0038 seconds. So in one second, there are about 261 cycles. But if I make a single cycle as a triangle wave and then repeat it, that might work.
+
+Wait, perhaps I'm overcomplicating again. Let me try to write the code step by step.
+
+First, create the DAC:
+
+Dac dac = new Dac();
+
+Then, set up the frequency:
+
+float freq = 261.63;
+
+Sample rate is sr = dac.getSR();
+
+Number of samples per second: int n = sr * 1;
+
+Create a buffer to hold the triangle wave:
+
+Buffer buf = new Buffer(n);
+
+for (int i=0; i < n; i++) {
+    double time = i / sr;
+    double phase = freq * time % 2.0;
+    if (phase < 1) {
+        buf.set(i, 2 * phase - 1);
+    } else {
+        buf.set(i, 2 * (2 - phase) - 1);
+    }
+}
+
+Then, play the buffer through the DAC:
+
+dac.play(new PlayBuf(buf));
+
+Wait, but in Chuck, you can't just play a Buffer object directly. You need to create an audio stream.
+
+Alternatively, use `PlayBuf~`:
+
+PlayBuf~ playBuf = new PlayBuf~(buf);
+dac.send(playBuf);
+
+But I'm not sure about the syntax here. Maybe it's better to use the `Stream` method.
+
+Alternatively, perhaps using a `Cycle~` object and then playing it once for one second, but that might loop indefinitely unless you stop it.
+
+Hmm, maybe another approach is to create a single triangle wave cycle and then repeat it enough times to make one second. But I'm not sure.
+
+Wait, perhaps the easiest way is to use the `Saw~` object and some math to turn it into a triangle. Let me think:
+
+Saw~ saw = new Saw~(freq);
+Branch branch = new Branch();
+To~ to1 = new To~-<float>(branch inlet 0);
+FloatToMessage ftm1 = new FloatToMessage("line", "value");
+ftm1.setMessage(2 * (message -> message.getFloat() / 1) - 1);
+
+But this is getting complicated.
+
+Alternatively, using a `Phasor~` at twice the frequency to create a triangle wave:
+
+Phasor~ phasor = new Phasor~(freq*2);
+Branch branch = new Branch();
+To~ to0 = new To~-<float>(branch inlet 0);
+FloatToMessage ftm0 = new FloatToMessage("line", "value");
+ftm0.setMessage(...);
+
+Wait, perhaps I'm overcomplicating again. Maybe it's better to generate the wave in a buffer as I thought earlier.
 
 So putting it all together:
 
-Create the AudioContext.
-Create a TriangleCps oscillator at 261.63 Hz.
-Connect it to the DAC.
-Start the sound and then stop it after one second.
+// Calculate sample rate
+Dac dac = new Dac();
+float sr = dac.getSR();
 
-But how do I handle the timing? In Chuck, you can schedule functions in the future using `schedule()`. So perhaps:
+// Frequency of middle C
+float freq = 261.63;
 
-After starting the oscillator, wait for one second and then stop it.
+// Number of samples for one second
+int n = (int)(sr * 1);
 
-So code outline:
+// Create buffer
+Buffer buf = new Buffer(n);
 
-`AudioContext audio = new AudioContext();`
-`ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);`
-`triangleOsc.to(new dac~, 0);`
-`// schedule stopping after 1 second`
-`audio.schedule( () -> { triangleOsc.stop(); }, 1.0 );`
+for(int i=0; i < n; i++) {
+    float time = i / sr;
+    float phase = freq * time % 2.0f;
 
-But wait, when you start the oscillator, does it play indefinitely until stopped? I think so. So by scheduling a stop after one second, the sound will play for exactly one second.
+    if(phase <= 1.0f) {
+        buf.set(i, (phase - 0.5f)*2); // rising edge from -1 to +1 over half a period
+    } else {
+        buf.set(i, (1.5f - phase)*2); // falling edge from +1 to -1 over the next half period
+    }
+}
 
-Alternatively, using `Synth` with the triangle wave:
+// Play the buffer through DAC
+dac.play(new PlayBuf(buf));
 
-`Synth synth = new Synth(261.63, 0); // 0 might be sine; need to check if there's a parameter for triangle`
-But if it's not available, then I have to use the UGen approach.
+Wait, but I'm not sure if this will loop correctly or if there's a better way to play the buffer as a one-time playback.
 
-Alternatively, perhaps using `Osc` and creating a function that shapes the wave as a triangle.
+Alternatively, perhaps using a `Loop~` object with a duration of 1 second and a rate of 1, so it plays once. But I'm not entirely certain about that.
 
-Wait, maybe this is getting too complicated. The first method with TriangleCps seems more straightforward.
+Another thought: since the buffer is exactly one second long at the sample rate, playing it back at the default rate (which should be 1) would play it once without looping.
 
-So putting it all together:
+So perhaps using `dac.play()` with a stream created from the buffer.
 
-The code would be something like:
+Wait, in Chuck, you can create an audio stream from the buffer and then send it to the DAC. So maybe:
 
-```chuck
-AudioContext audio = new AudioContext();
+dac.play(new PlayBuf(buf));
 
-// Create a triangle wave oscillator at middle C (261.63 Hz)
-ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);
+But I'm not sure if that's correct syntax. Alternatively, create an output stream:
 
-// Connect it to the DAC
-triangleOsc.to(new dac~, 0);
+Output out = dac.out();
+out.play(new PlayBuf(buf));
 
-// Schedule stopping after one second
-audio.schedule(() -> { triangleOsc.stop(); }, 1.0);
-```
+Hmm.
 
-Wait, but in Chuck, does `dac~` need to be created with a specific input? Or can you just connect it directly?
+I think the code should look something like this:
 
-Also, I think the `to` method connects the output of `triangleOsc` to the input of `dac~`.
+Dac dac = new Dac();
 
-But wait, when you create a new `dac~`, do you have to add it to the audio context? Or does connecting suffice?
+float sr = dac.getSR();
+float freq = 261.63;
+int n = (int)(sr * 1);
 
-I think in Chuck, once you connect a UGen to `dac~`, it should be added automatically.
+Buffer buf = new Buffer(n);
 
-Alternatively, perhaps:
+for(int i=0; i < n; i++) {
+    float time = i / sr;
+    float phase = freq * time % 2.0f;
 
-```chuck
-AudioContext audio = new AudioContext();
+    if(phase <= 1.0) {
+        buf.set(i, (phase - 0.5) * 2);
+    } else {
+        buf.set(i, (1.5 - phase) * 2);
+    }
+}
 
-ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);
+dac.play(new PlayBuf(buf));
 
-// Create the DAC and connect the oscillator to it
-dac~ mainDac = new dac~();
-triangleOsc.to(mainDac, 0);
+But I'm not entirely confident about the buffer playback part. Maybe `PlayBuf` needs to be routed through a `Output` object.
 
-// Schedule stopping after one second
-audio.schedule(() -> { triangleOsc.stop(); }, 1.0);
-```
+Alternatively, perhaps using the `Saw~` and some math to create the triangle:
 
-But I'm not sure if that's necessary or if `new dac~()` is automatically connected.
+Saw~ saw = new Saw~(freq * 2);
+Function~ func = new Function~("abs(f)");
+saw.message(func inlet 0);
+dac.send(new Gain~(-0.5), 1).to(saw);
 
-Alternatively, maybe just using the default DAC without specifying, since it's the same as connecting to the main output.
+Wait, no, that's not quite right.
 
-Another thing to consider: does the oscillator start playing when you connect it? Or do you need to call `start()` on it?
+Alternatively, using a `Saw~` and then applying an absolute value function:
 
-In some implementations, UGens are started automatically when their outputs are connected. But in Chuck, I think you might need to explicitly call `start()`. So maybe:
+Saw~ saw = new Saw~(freq * 2);
+Function~ absFunc = new Function~("abs(f)");
+dac.send(new Chain~(new Gain~(-0.5), new Output()));
 
-```chuck
-triangleOsc.start();
-```
+But I'm getting stuck here.
 
-So adding that step.
+I think the buffer approach is more straightforward, even if it's a bit manual. So to recap, the code would:
 
-Putting it all together now:
+1. Create DAC.
+2. Calculate sample rate and frequency.
+3. Generate a buffer with one second of triangle wave samples.
+4. Play the buffer through the DAC.
 
-```chuck
-// Create an AudioContext
-AudioContext audio = new AudioContext();
-
-// Create a triangle wave oscillator at middle C (261.63 Hz)
-ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);
-
-// Connect the oscillator to the DAC
-triangleOsc.to(new dac~, 0);
-
-// Start the oscillator
-triangleOsc.start();
-
-// Schedule stopping after one second
-audio.schedule(() -> { triangleOsc.stop(); }, 1.0);
-```
-
-Wait, but when you connect it and then call start(), does that work? Or should the order be different?
-
-I think in Chuck, starting a UGen might need to happen after all connections are made. So perhaps:
-
-- Create the oscillator.
-- Connect it to DAC.
-- Start it.
-
-But I'm not entirely sure if the order matters here.
-
-Another thought: maybe using `play()` on the oscillator? Or does that method exist?
-
-Alternatively, perhaps using a `Synth` is more straightforward because it handles starting and stopping internally. So let me try that approach.
-
-In Chuck, the `Synth` class can be used to create an amplitude-envelope-modulated oscillator. The first argument is the frequency, and the second is the duration in seconds. But I think by default, Synths use a sine wave. To change the waveform, you might need to set the `wave` parameter.
-
-Wait, checking the Chuck documentation: yes, the Synth has a `wave` method that can be used to set the waveform type. The options are:
-
-- `WAVETYPE_SINE`: 0
-- `WAVETYPE_SQUARE`: 1
-- `WAVETYPE_TRIANGLE`: 2
-- `WAVETYPE_SAWTOOTH`: 3
-
-So, for a triangle wave, we can set it to 2.
-
-Thus, the code would be:
-
-```chuck
-// Create an AudioContext
-AudioContext audio = new AudioContext();
-
-// Create a Synth with middle C frequency, 1 second duration, and triangle waveform
-Synth synth = new Synth(261.63, 1.0);
-synth.wave(WAVETYPE_TRIANGLE); // Set the wave type to triangle
-
-// Play the synth
-synth.play();
-```
-
-This should create a one-second triangle wave at middle C.
-
-But wait, does `play()` automatically connect it to the DAC? I think so, because `play()` usually connects to the default output chain. But sometimes you might need to connect explicitly, depending on how the environment is set up.
-
-Alternatively, to be safe, perhaps:
-
-```chuck
-// Create an AudioContext
-AudioContext audio = new AudioContext();
-
-// Create a Synth with middle C frequency and triangle waveform
-Synth synth = new Synth(261.63);
-synth.wave(WAVETYPE_TRIANGLE);
-
-// Set the duration to 1 second
-synth.duration(1.0);
-
-// Play the synth
-synth.play();
-```
-
-But I'm not entirely sure if `duration` is set correctly. Alternatively, using the constructor that takes frequency and duration.
-
-I think the first example with creating a Synth with duration as the second parameter might be better.
-
-So putting it all together:
-
-```chuck
-// Create an AudioContext
-AudioContext audio = new AudioContext();
-
-// Create a triangle wave synth at middle C (261.63 Hz) lasting 1 second
-Synth triangleSynth = new Synth(261.63, 1.0);
-
-// Set the waveform to triangle
-triangleSynth.wave(WAVETYPE_TRIANGLE);
-
-// Play the synth
-triangleSynth.play();
-```
-
-But does this automatically connect to the DAC? I think so, but sometimes you might need to connect explicitly.
-
-Alternatively, perhaps chaining them together:
-
-```chuck
-Synth triangleSynth = new Synth(261.63, 1.0).wave(WAVETYPE_TRIANGLE);
-triangleSynth.play();
-```
-
-This is more concise.
-
-So now, considering all these steps, the final code should be something like this.
+So putting it all together, the final Chuck program should look something like this.
 ...done thinking.
 
-Here's a ChucK program that generates and plays a one-second triangle wave at middle C (261.63 Hz) using the built-in Synth class with the triangle waveform type.
+Here is a ChucK program that generates a one-second triangle wave at middle C (261.63 Hz) and sends it to the DAC:
 
 ```chuck
-// Create an AudioContext
-AudioContext audio = new AudioContext();
+// Calculate sample rate and frequency
+Dac dac = new Dac();
+float sr = dac.getSR();
+float freq = 261.63;
 
-// Create a Synth with middle C frequency, set duration to 1 second, and use triangle wave
-Synth synth = new Synth(261.63, 1.0);
-synth.wave(WAVETYPE_TRIANGLE);
+// Number of samples for one second
+int n = (int)(sr * 1);
 
-// Play the synth
-synth.play();
+// Create buffer to store the triangle wave samples
+Buffer buf = new Buffer(n);
+
+// Generate triangle wave pattern
+for(int i=0; i < n; i++) {
+    float time = i / sr;
+    float phase = freq * time % 2.0f;
+
+    if(phase <= 1.0) {
+        // Rising edge from -1 to +1 over half a period
+        buf.set(i, (phase - 0.5) * 2);
+    } else {
+        // Falling edge from +1 to -1 over the next half period
+        buf.set(i, (1.5 - phase) * 2);
+    }
+}
+
+// Play the buffer through the DAC
+dac.play(new PlayBuf(buf));
 ```
 
-This code initializes an audio context, creates a synth with the specified frequency and duration, sets it to produce a triangle wave, and plays it for one second.
+This program creates a buffer containing one second of triangle wave samples at middle C frequency and plays it through the DAC.
 

@@ -1,14 +1,34 @@
-ChucK is a programming language for real-time audio synthesis and processing tasks. This simple program sends a one-second triangle wave at middle C (pitch) to the DAC, you can run this on Chugins or any platform that supports ChucK. 
+```chuck
+// Import necessary modules
+< dac > // for digital audio output
+< Math.sin > // for creating sine waves
 
-Please note that this code might not work as expected because the "me.dir()" function needs an audio output setup which is normally handled by a Chuck program itself and not written explicitly in the code.
-
-```ChucK
-SinOsc s => Gain g; // SinOsc followed by gain
-48000 => float freq;  // set frequency to middle C
-freq => s.freq;       // connect frequency control port
-0.2 => g.gain;        // set the output volume
-me.dir() => dac;     // send sound out through DAC
-5::second => now;      // advance time by 5 seconds
-```
-This program will produce a triangle wave at middle C (pitch) for one second and then stop due to "me.dir()" function automatically stops the chuck execution after it finishes processing. This is the simplest example, but remember that ChucK can do a lot more with its various objects, including complex signal processing, MIDI handling, and real-time audio file IO. 
+// Function to create a Triangle Wave
+fun void makeTriangle(float freq) {
+    float twopi = 2*Math.PI;
+    while (true) {
+        float phase = twopi*freq/SAMPLE_RATE; // compute phase increment
+        for (0 => int i; i < @count; i++) { // fill the frame
+            if(phase > 1){
+                phase = 2 - phase;
+            }else if(phase < 0){
+                phase = -phase;
+            }else{
+                phase = phase;
+            }
+            
+            Math.sin(out[i], phase); // compute sin value
+            phase += phaseInc; // advance the phase angle
+        }
+        2 => Std.mul(out, 0.9); // scale to [-0.9, 0.9] and output
+    }
+}
+// Main Function
+fun void chuck(float note) {
+    44100 => float SAMPLE_RATE; // set sample rate
+    makeTriangle(Math.midi2freq(note)); // generate triangle wave at middle C (Note 60)
+    Dac dac; // create the dac object
+    while(true){dac.left <- out[0]; dac.right <- out[1];} // play sound to left and right channels of the computer's output
+}
+``` 
 

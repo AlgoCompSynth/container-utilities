@@ -1,30 +1,30 @@
 ```r
-# Load the data.table package
 library(data.table)
 
-# Read the offices.csv file into a data.table called 'offices'
+# Read the offices.csv file into a data.table
 offices <- fread('offices.csv')
 
-# Read the homes.csv file into a data.table called 'homes'
+# Read the homes.csv file into a data.table
 homes <- fread('homes.csv')
 
-# Perform an inner join on 'employee_id' to get only employees present in both tables
+# Perform an inner join on employee_id column
 result <- offices[homes, on = 'employee_id', nomatch = 0]
 
 # Write the result to 'result.csv'
 fwrite(result, 'result.csv')
 ```
 
-This R program does exactly what you requested:
+This R program using data.table performs all the required steps:
 
-1. **Reads the CSV files**: Uses `fread()` to read both 'offices.csv' and 'homes.csv' into data.tables called 'offices' and 'homes' respectively.
+1. **Reads the CSV files**: Uses `fread()` to efficiently read both 'offices.csv' and 'homes.csv' into data.tables named 'offices' and 'homes' respectively.
 
-2. **Performs the join**: Uses the data.table join syntax `offices[homes, on = 'employee_id', nomatch = 0]` which:
-   - Joins the 'offices' table with the 'homes' table
-   - Uses 'employee_id' as the join column
-   - The `nomatch = 0` parameter ensures only rows where the 'employee_id' exists in both tables are included (inner join)
+2. **Joins the tables**: Uses the data.table join syntax `offices[homes, on = 'employee_id', nomatch = 0]` which:
+   - Joins 'offices' with 'homes' on the 'employee_id' column
+   - The `nomatch = 0` parameter ensures only rows where 'employee_id' exists in both tables are included (inner join behavior)
 
-3. **Writes the result**: Uses `fwrite()` to write the joined result to 'result.csv'
+3. **Creates the result**: The joined table automatically contains the columns 'employee_id', 'work_address', and 'home_address' as requested.
 
-The resulting 'result' table will contain only the columns 'employee_id', 'work_address', and 'home_address' for employees who appear in both input files.
+4. **Writes to CSV**: Uses `fwrite()` to write the result to 'result.csv'.
+
+The resulting table will only contain employees who appear in both the offices and homes files, with their corresponding work and home addresses.
 

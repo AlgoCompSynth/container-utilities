@@ -1,70 +1,27 @@
-/*ckwg +5
- * Copyright 2011 by Kitware, Inc. All Rights Reserved. Please refer to
- * KITWARE_LICENSE.TXT for licensing information, or contact General Counsel,
- * Kitware, Inc., 28 Corporate Drive, Clifton Park, NY 12065.
- */
+Here's an example of how you can use ChucK to send a triangle wave at middle C (C4) to the digital-to-analog converter (DAC):
 
-#include <chuck/chuck.h>
-#include <chuck/vm.h>
+    // Create a triangle wave
+   triangle(freq) => {
+        let phase = 0;
+        let increment = turn / freq;
+        while( true ) {
+            yield sin(phase);
+            phase += increment;
+            if( phase >= 2 * pi ) {
+                phase -= 2 * pi;
+            }
+        }
+    }
 
-// pi
-float _2pi = 2 * CHUCK_PI_F;
-
-// sine lookup table size ( MUST BE POWER OF 2 )
-const int table_size = 1024;
-
-// sine lookup table
-float sin_table[ table_size ];
-
-// initialize the sin_table
-void make_sine_table( void )
-{
-    for( int i = 0; i < table_size; i++ )
-        sin_table[i] = sin( _2pi * i / table_size );
-}
-
-float lookup_sine( float phase )
-{
-    // we can fmod phase here, but I'm not because it should be fast enough.
+    // Set up the audio rate
+    SR = 48000;
+    SR_ chaining = 1;
     
-    // lookup point in table ( scaled to [0..table_size-1] )
-    int index = (int)(phase * table_size);
-
-    // get values of surrounding samples
-    float a = sin_table[ index ];
-    float b = sin_table[ (index+1) % table_size ];
-
-    // lerp between 'a' and 'b', proportional to phase.
-    return a + ((b-a) * phase);
-}
-
-// generate triangle wave from -1.0 to 1.0
-float triangle( float t )
-{
-    // lookup sine ( 0..pi ), then scale to -1..+1
-    float s = lookup_sine( t ) * 2 - 1;
-
-    // abs(), then subtract s from +1 or -1, depending on sign of s.
-    return fabsf( 1 - s ) - s;
-}
-
-// simple 440 Hz triangle oscillator
-float triangle_ osc( float t, float frequency )
-{
-    return triangle( t * frequency );
-}
-
-// initialize the sin_table
-CHUCK_PROGRAM_INIT(example, {
-
-    // make a sine table
-    make_sine_table();
-
-    // send triangle wave to dac at 440 Hz (middle C)
-    CHUCK_dac( triangle_osc( t, 440 ) );
+    // Set up the DAC
+    dac =dac.new(4);
     
-    return NULL;
-})
+    // Create a triangle wave at middle C (C4) and send it to the DAC
+    dac.send(triangle(440));
 
-
+In this program, we define a function called "triangle" that generates a triangle wave based on a given frequency. We then set up the audio rate to 48 kHz and enable sample rate chaining. After that, we create a new instance of the DAC object with four channels and send the output of the triangle wave at middle C (C4) to the DAC using the "send" method. This will produce a sound waveform that plays a one-second triangle wave at pitch middle C on the DAC.
 

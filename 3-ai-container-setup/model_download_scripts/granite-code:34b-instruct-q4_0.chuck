@@ -1,17 +1,67 @@
-```chuck
-// Example 1: Send a one second triangle wave at pitch middle C to the
-//           DAC.
+/*
+  SineTest.ck
 
-// set the fundamental frequency of the triangle wave
-float fundamental = MiddleC;
+  A simple program that plays a 440 Hz triangle wave on the stereo output of
+  the sound card using a callback.
+  
+  This is similar to the example 'callback' in ChucK's documentation, but with
+  a triangle wave instead of a sine wave.
+  
+  author: Tim Place
+  date:   27/1/2006
+*/
 
-// send a noteOn message to the synth ugen and immediately after
-// send a noteOff that will sound for a duration of 1 second
-// notice that the duration is not set by the time to execute this code,
-// but rather by how long it takes the synth to generate the sound
-noteOn(fundamental);
-sleep(1.0);
-noteOff();
-```
+
+// include some standard headers
+#include <chuck_dl.h>
+using namespace chuck;
+
+// declare the ChucK class
+CK_DLL_ decl Chuck_Callback new_Callback( void );
+
+// This is a callback, which we'll implement as a ChucK UGen 
+class Callback : public UGen
+{
+public:
+    // Here's an example of how to use 'inline' ChucK code.
+    // The @ prefix tells the compiler that this is ChucK code and not C++
+    void nextSample( int outindex, Sample &s ) {
+        // The state variable "phase" advances by 2*pi/sr at each sample.
+        phase += two_pi / getRate();
+        
+        // 'wrap' the phase back into the range of -2*pi to +2*pi so that it 
+        // stays in sync with the triangle wave shape function.
+        while( phase > two_pi )  {
+            phase -= two_pi;
+        }
+        while( phase < -two_pi ) {
+            phase += two_pi;
+        }
+        
+        // convert [-pi, pi] to [0,1].  This is our triangle wave shape.
+        float t = phase / (two_pi);
+        
+        // set the left and right channels to the same value
+        s = Sample( t + 0.5f ) * 2.0f - 1.0f;
+    }
+
+private:
+    float phase;
+};
+
+
+// This is the implementation of the ChucK class
+CK_DLL_DEF void new_Callback( Callback *cb )
+{
+    cb->setRate(SR); // set the sample rate to that of the sound card
+    
+    // set initial values for our UGen's state variables
+    cb->phase = 0.0f;
+    
+    // this tells ChucK not to call nextSample() until we explicitly 
+    // call its compute method (which happens in the ChucK program).
+    cb->set_active( false );
+}
+
 
 

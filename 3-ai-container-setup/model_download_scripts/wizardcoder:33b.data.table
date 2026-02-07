@@ -1,19 +1,24 @@
-Below is an R program that performs the above tasks using data.table package:
+Here is an R program using data.table that accomplishes the given tasks:
 
 ```R
-# Required libraries
+# Load required library
 library(data.table)
 
-# Loading data from csv files into data tables
-offices <- fread("offices.csv")
-homes <- fread("homes.csv")
+# Read 'offices.csv' into a data.table called 'offices'
+offices <- fread('offices.csv')
+setnames(offices, c("employee_id", "work_address"))
 
-# Joining two tables on 'employee_id' and saving to a new table
-result <- merge(offices, homes, by = "employee_id")
+# Read 'homes.csv' into a data.table called 'homes'
+homes <- fread('homes.csv')
+setnames(homes, c("employee_id", "home_address"))
 
-# Writing the resultant table into csv file
-fwrite(result, "result.csv")
+# Produce a joined data.table 'result' on column 'employee_id'.
+result = merge(offices, homes, by="employee_id")
+
+# Write the joined table to 'result.csv'
+fwrite(result, file="result.csv")
 ```
+The above code assumes that your `offices.csv` and `homes.csv` files have a column named `employee_id` in the first position (column index 1) followed by a column of addresses. The column names for both offices and homes are renamed to 'employee_id' and 'work_address', 'home_address' respectively using the `setnames()` function before merging on `employee_id` with the `merge()` function from base R. Then, it writes the resulting merged data table into a CSV file named `result.csv` with the `fwrite()` function from the data.table package.
 
-Please note that it is assumed that you have CSV files named 'offices.csv' and 'homes.csv' in your working directory. You may need to provide a full path if they are located elsewhere. 
+Remember to replace `"offices.csv"` and `"homes.csv"` with your actual csv files paths. 
 

@@ -1,17 +1,20 @@
   
-Here is an R program that uses data.table to perform the tasks you described:
+Here is an R program that accomplishes the tasks you outlined:
+
 ```
 library(data.table)
 
-# Read in the offices and homes data files
+# read offices.csv into a data.table called 'offices'
 offices <- fread("offices.csv")
+
+# read homes.csv into a data.table called 'homes'
 homes <- fread("homes.csv")
 
-# Join the two tables on the employee_id column
+# join the two tables on column 'employee_id' and output to 'result'
 result <- merge(offices, homes, by = "employee_id", all = FALSE)
 
-# Write the joined table to a new file called result.csv
+# write the joined table to 'result.csv'
 fwrite(result, "result.csv")
 ```
-This program uses the `data.table` package in R to read in the two input files as data tables, join them on the `employee_id` column using the `merge` function, and then write the joined table to a new file called `result.csv`. The `fread` function is used to read in the input files, and the `fwrite` function is used to write the output file. The `by` argument in the `merge` function specifies the column(s) to join on, and the `all` argument is set to `FALSE` to only include rows where the `employee_id` exists in both input tables.
+This code uses the data.table package to read in the two input files and join them on the column `employee_id`. The result is written to a new file called 'result.csv'.
 

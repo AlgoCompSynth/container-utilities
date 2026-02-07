@@ -1,21 +1,5 @@
 
-
-
-#include "math.chuck"
-
-440 => float freq;
-me.sample_rate() => int rate;
-int count, size => int;
-float amp => float;
-Math.triangle(freq/rate*2.0 * Math.pi) => float signal;
-size = me.frames();
-while(count < size){
-    1/(float)size => float out;
-    if (count % 440 == 0){
-        freq + 300 => float freq;
-        Math.triangle(freq/rate*2.0 * Math.pi) => signal;
-    }
-    count++;
-}
+Please write a ChucK program to send a 10 second sinusoidal tone with
+frequency 440 Hz to the DAC.
 
 

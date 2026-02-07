@@ -1,126 +1,92 @@
 Thinking...
-The user wants an R program using data.table to do specified tasks. Provide code: load data.table, read CSV, join with inner join on employee_id, write to CSV. Provide explanation, maybe full script with comments.
-
-Edge cases: ensure columns are character, read as strings, maybe use fread.
-
-Also can include specifying header, stringsAsFactors=FALSE, but fread handles. Use setkey for join.
-
-Example code:
-
-library(data.table)
-offices <- fread('offices.csv', colClasses = c(employee_id='character', work_address='character'))
-homes <- fread('homes.csv', colClasses = c(employee_id='character', home_address='character'))
-
-setkey(offices, employee_id)
-setkey(homes, employee_id)
-
-result <- offices[homes, nomatch=0, .(employee_id, work_address, home_address)]
-
-or equivalently: result <- merge(offices, homes, by='employee_id', all=FALSE, sort=FALSE). Write:
-
-fwrite(result, 'result.csv')
-
-Better to ensure order or drop extra columns.
-
-Also might show example of reading if not specified: set names.
-
-The user likely expects a script. Provide full code.
-
-We can add comments.
-
-Also mention install.packages if missing.
-
-Let's produce answer: R script with step-by-step.
-
-Make sure to load data.table, read, set key, join, write. Use .SD or .() as needed.
-
-Add 'result' name. Provide final output. Provide error handling.
-
-Write final answer.
+We need to produce an R program using data.table that reads offices.csv and homes.csv, join on employee_id, keep only those in both, write result to result.csv. The columns are text, but that doesn't matter. Provide R code with comments. Possibly mention using fread and fwrite. Provide solution. Provide entire script. Should ensure output columns order: employee_id, work_address, home_address. Should use data.table's merge function or J. Use by = employee_id. Could use result <- merge(offices, homes, by="employee_id", all=FALSE). Ensure only rows that exist in both. Or use offices[homes, on="employee_id"] maybe produce all = FALSE? The join in data.table can use [homes, on="employee_id", nomatch=0] for inner join. Let's produce simple solution. Provide code. Add setkey? Use merge. Provide reading and writing. Also note that reading with fread will auto detect column types. Should set stringsAsFactors=FALSE maybe? Actually fread returns character columns by default? In R 4.0 maybe. Use colClasses. Provide explicit colClasses: "character". Provide. Good. Provide code. Provide explanation. Let's produce final answer.
 ...done thinking.
 
-Below is a **stand‑alone R script** that does exactly what you asked for.  
-Save it to a file (e.g. `join_offices_homes.R`) and run it from the terminal or R console.
+Below is a **stand‑alone R script** that uses the `data.table` package to perform all the steps you asked for.
 
 ```r
 #!/usr/bin/env Rscript
-# ------------------------------------------------------------------
+#
 #  join_offices_homes.R
 #
-#  Reads two CSV files, joins them on employee_id (inner join),
-#  and writes the result to result.csv.
-# ------------------------------------------------------------------
+#  1.  Read offices.csv  ->  data.table  offices
+#  2.  Read homes.csv    ->  data.table  homes
+#  3.  Inner‑join on employee_id
+#  4.  Write the result to result.csv
+#
+#  Usage: Rscript join_offices_homes.R
+#
+#  Requires: data.table  (install.packages("data.table") if missing)
+#
 
 # ------------------------------------------------------------------
-#  0. Load data.table (install if necessary)
+# 1. Load the data.table package ------------------------------------------------
 # ------------------------------------------------------------------
 if (!requireNamespace("data.table", quietly = TRUE)) {
-  install.packages("data.table", repos = "https://cloud.r-project.org")
+  stop("Package 'data.table' is required but not installed.\n",
+       "Install it with: install.packages('data.table')")
 }
 library(data.table)
 
 # ------------------------------------------------------------------
-#  1. Read offices.csv
+# 2. Read the two CSV files ----------------------------------------------------
 # ------------------------------------------------------------------
-# Use fread for fast, memory‑efficient loading.
-# Specify column types explicitly so everything stays as text.
+# We explicitly set the column types to character so that the
+# resulting data.table has text columns.
 offices <- fread(
-  file   = "offices.csv",
-  colClasses = list(
-    employee_id = "character",
-    work_address = "character"
-  )
+  "offices.csv",
+  colClasses = list(character = c("employee_id", "work_address")),
+  data.table = TRUE
 )
 
-# ------------------------------------------------------------------
-#  2. Read homes.csv
-# ------------------------------------------------------------------
 homes <- fread(
-  file   = "homes.csv",
-  colClasses = list(
-    employee_id = "character",
-    home_address = "character"
-  )
+  "homes.csv",
+  colClasses = list(character = c("employee_id", "home_address")),
+  data.table = TRUE
 )
 
 # ------------------------------------------------------------------
-#  3. Join the two tables on employee_id (inner join only)
+# 3. Inner‑join on employee_id ----------------------------------------
 # ------------------------------------------------------------------
-# Setting keys allows for a fast binary join.
-setkey(offices, employee_id)
-setkey(homes,   employee_id)
-
-# Perform the join.  The 'nomatch = 0L' argument ensures
-# that only rows present in BOTH tables are kept.
-result <- offices[homes, nomatch = 0L, .(
-  employee_id,
-  work_address,
-  home_address
-)]
-
-# ------------------------------------------------------------------
-#  4. Write the joined table to result.csv
-# ------------------------------------------------------------------
-fwrite(result, file = "result.csv", row.names = FALSE)
+# The simplest and most readable way is to use merge() with all=FALSE
+# (the default is all=TRUE for a full outer join).
+# The result will automatically have the columns in the order
+# employee_id, work_address, home_address.
+result <- merge(
+  x = offices,
+  y = homes,
+  by = "employee_id",
+  all = FALSE          # inner join only
+)
 
 # ------------------------------------------------------------------
-#  Done
+# 4. Write the joined table to result.csv -----------------------------
 # ------------------------------------------------------------------
-cat("Joined table written to 'result.csv'.\n")
+fwrite(result, "result.csv", row.names = FALSE)
+
+# ------------------------------------------------------------------
+# End of script --------------------------------------------------------
+# ------------------------------------------------------------------
 ```
 
 ### How it works
 
 | Step | What the code does |
 |------|--------------------|
-| **0** | Loads `data.table`; installs it if it isn’t already available. |
-| **1** | Reads `offices.csv` into a data.table called `offices`. `colClasses` forces both columns to be character strings. |
-| **2** | Reads `homes.csv` into a data.table called `homes` with the same type safety. |
-| **3** | Sets `employee_id` as the key on each table, then performs an **inner join** (`nomatch = 0L`). The result contains only the common `employee_id`s and the three required columns. |
-| **4** | Writes the resulting data.table to `result.csv` using `fwrite`, which is faster than `write.csv`. |
+| 1 | Loads `data.table`. If the package is missing, the script stops with an informative message. |
+| 2 | Reads `offices.csv` and `homes.csv` into data.tables `offices` and `homes`. The `colClasses` argument forces both columns to be of type `character`, ensuring that the output columns are text. |
+| 3 | Performs an **inner join** (`all = FALSE`) on the key column `employee_id`. Only rows that exist in **both** tables are kept. |
+| 4 | Writes the joined data.table to `result.csv` using `fwrite`, which is the fast, convenient counterpart of `write.csv`. |
 
-> **Tip** – If your CSV files contain a header row (as usual), `fread` automatically uses those names.  
-> If you ever need a *left* or *right* join, replace `nomatch = 0L` with `nomatch = NA` (left) or swap the tables (right).
+### Running the script
 
-Enjoy the fast, memory‑efficient data manipulation that `data.table` offers!
+1. Save the code to a file, e.g. `join_offices_homes.R`.
+2. Make sure the two input files (`offices.csv` and `homes.csv`) are in the same directory, or provide full paths in the `fread()` calls.
+3. In a terminal, run:
+
+```bash
+Rscript join_offices_homes.R
+```
+
+After the script finishes, you will find `result.csv` in the same directory, containing only the rows where an `employee_id` appears in both input files.
 

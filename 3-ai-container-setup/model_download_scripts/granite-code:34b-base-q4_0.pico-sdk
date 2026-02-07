@@ -1,0 +1,25 @@
+
+**The program should:**
+
+- Configure the PIO with all necessary state machines and pins (up to 6
+  additional GPIOs).
+- Define a function that generates an array of samples, containing one
+  second of continuous sine wave at middle C on mono channel in signed
+  16bit format.
+- Send the sample data over I2S. The audio sampling rate should be as high
+  as possible for this application (up to 48kHz is reasonable), so you can't
+  use the PWM module here.
+
+You are free how to do it, i.e., you could write a library of useful PIO code and call that from your C program or you may even try some C++ tricks on the microcontroller side to make this work! The point is only: Do something with Pico C/C++, do not use PWM for audio output, but I2S.
+
+The project should have one folder called `src`, and inside that folder there are two files, as follows (only the contents of those files):
+- **main.c** -  A main program using a function in **pio_dac.h**. This is where
+  you should put all code necessary to configure the PIO for I2S output. You must
+  also call this function from your main program so that the samples are sent over
+  I2S.
+- **pio_dac.c** -  This file contains a function that generates an array of
+  16bit signed integers, containing one second worth sine wave at middle C on mono channel in unsigned format (i.e., values from ~0 to ~32768). Your function should also contain code so that the PIO is programmed correctly for this data and sends it over I2S.
+- **pio_dac.h** - This file contains a prototype of your `generate_samples()`
+  function (which you must implement in pio_dac.c) as well as some #defines with GPIO pin assignments: the PIO RX FIFO pin to receive audio data, and two pins for the I2S DAC on the 24-bit output.
+
+

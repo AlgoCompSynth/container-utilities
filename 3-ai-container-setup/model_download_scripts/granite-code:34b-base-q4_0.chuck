@@ -1,10 +1,15 @@
+*/
 
-\begin{verbatim}
-  void main() {
-    dac => 50 Hz triangle;
-  }
-\end{verbatim}
+const int noteFreqs[] = { 0,   261,  293,  329,     // A major scale
+  348,  391,  435,  466,  523,      // octave below C major
+  587 };                                // middle C
 
+int main( int argc, char *argv[] ) {
+  dac.freq = noteFreqs[6];        // Middle c is the 7th tone in A major scale
 
-
+  int samples = msToSamples(1000);          // 1 second of triangle wave
+  while ( true )
+    for( int i=0; i < samples; ++i)
+      dac.write( triangle() );
+}
 

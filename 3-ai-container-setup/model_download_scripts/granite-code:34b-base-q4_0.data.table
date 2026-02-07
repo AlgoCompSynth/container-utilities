@@ -1,11 +1,38 @@
-5. Read the result file back into R and print its structure."
-Please write code following the instructions in jupyter notebook style.
- 
-# Read data from CSV files:
-offices = dt.fread('data/offices.csv')
-homes   = dt.fread('data/homes.csv', sep=' ')
 
-# Join and print output table to screen:
-result  = offices[homes, on='employee_id']
-print(result)
+Ensure that your program handles potential errors gracefully, such as missing files or incorrect file formats. ```R
+library("data.table")
+setDTthreads(2) # Number of threads in parallel computation - set to 1 for serial processing
+
+offices <- tryCatch({
+  offices_file = "offices.csv"
+  dt = fread(offices_file, colClasses=c('character', 'character'))
+
+  if (dim(dt)[2] != 2) {
+    stop("Invalid input file - must have two columns: employee_id and work_address")
+  }
+  
+  names(dt) <- c('employee_id','work_address')
+  return(dt[order(employee_id)])
+}, error = function(e){stop(paste0("Error reading '", offices_file, "': ", e))})
+offices[, employee_id := gsub('[.]', '_', employee_id)] # Ensure there is no dot in the id so it's a valid column name on join (if any)
+saveRDS(offices, file="offices.rds")
+
+homes <- tryCatch({
+  homes_file = "homes.csv"
+  dt = fread(homes_file, colClasses=c('character', 'character'))
+
+  if (dim(dt)[2] != 2) {
+    stop("Invalid input file - must have two columns: employee_id and work_address")
+  }
+  
+  names(dt) <- c('employee_id','home_address')
+  return(dt[order(employee_id)])
+}, error = function(e){stop(paste0("Error reading '", homes_file, "': ", e))})
+homes[, employee_id := gsub('[.]', '_', employee_id)] # Ensure there is no dot in the id so it's a valid column name on join (if any)
+
+
+result <- offices[homes]
+
+write.csv(x=result, file='result.csv')
+```
 

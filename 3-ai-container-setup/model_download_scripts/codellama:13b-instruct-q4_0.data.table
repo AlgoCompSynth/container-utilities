@@ -1,12 +1,17 @@
+```R
 library(data.table)
 
-# Read in the data
+# 1. Read offices data
 offices <- fread("offices.csv")
+
+# 2. Read homes data
 homes <- fread("homes.csv")
 
-# Join the two tables on employee_id
+# 3. Join offices and homes by employee_id
 result <- offices[homes, on = "employee_id"]
 
-# Write the joined table to a file
+# 4. Write joined table to file
 fwrite(result, "result.csv")
+```
+In this example, we use the `data.table` package to perform a join operation on two data tables based on a common column. The resulting joined table is written to a CSV file named 'result.csv'.
 

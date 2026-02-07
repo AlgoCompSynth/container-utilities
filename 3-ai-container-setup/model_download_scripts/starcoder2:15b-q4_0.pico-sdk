@@ -1,0 +1,12 @@
+
+
+The I2S format for the DAC is shown in the figure below:
+
+![I2S Format](https://github.com/davedavehongg/Pi-pico/blob/main/15000_images/014_i2s_format.png)
+
+The audio output of the DAC is connected to a speaker in series with a 100uF
+capacitor and a resistor (300 Ohms or so) in parallel. The purpose of this
+resistor is to limit current draw from the capacitor when the power supply
+is turned off. This technique is called **resistive flyback**.
+
+

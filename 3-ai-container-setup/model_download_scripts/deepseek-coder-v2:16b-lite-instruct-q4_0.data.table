@@ -1,34 +1,34 @@
- To accomplish the tasks you've outlined using R, we will use the `data.table` package for efficient data manipulation. Below is an R script that reads two CSV files (`offices.csv` and `homes.csv`), joins them on the `employee_id` column, and then writes the resulting joined table to a new CSV file (`result.csv`).
+ To accomplish the tasks outlined in your request, you can use the `data.table` package in R for efficient data manipulation. Below is an R script that reads two CSV files (`offices.csv` and `homes.csv`), joins them on the `employee_id` column, and then writes the joined table to a new CSV file (`result.csv`).
 
-First, ensure you have the necessary package installed. If not, you can install it using:
+First, ensure you have the `data.table` package installed. If not, you can install it using:
 ```R
 install.packages("data.table")
 ```
 
-Now, here is the R script:
+Here is the R script:
 
 ```R
 # Load the data.table library
 library(data.table)
 
-# 1. Read 'offices.csv' into a data.table called 'offices'
-offices <- fread("offices.csv")
+# Step 1: Read 'offices.csv' into a data.table called 'offices'
+offices <- fread('offices.csv')
 
-# 2. Read 'homes.csv' into a data.table called 'homes'
-homes <- fread("homes.csv")
+# Step 2: Read 'homes.csv' into a data.table called 'homes'
+homes <- fread('homes.csv')
 
-# 3. Produce a joined data.table 'result' on column 'employee_id'.
-# Ensure that only rows with matching 'employee_id' in both tables are included.
+# Step 3: Produce a joined data.table 'result' on column 'employee_id'
+# Ensure that only rows with matching 'employee_id' in both tables are included
 result <- merge(offices, homes, by = "employee_id", all = FALSE)
 
-# 4. Write the joined table to 'result.csv'
-fwrite(result, "result.csv")
+# Step 4: Write the joined table to 'result.csv'
+fwrite(result, 'result.csv')
 ```
 
 ### Explanation:
-- **`fread()`**: This function from `data.table` is used to read CSV files efficiently into data tables. It automatically determines the delimiter and handles other optimizations under the hood compared to base R functions like `read.csv`.
-- **`merge()`**: This function is used to join two data tables based on a common column. The `by = "employee_id"` argument specifies that the join should be made on this column, which exists in both tables. The `all = FALSE` argument ensures that only rows with matching `employee_id` values from both tables are included in the result.
-- **`fwrite()`**: This function is used to write a data table to a CSV file efficiently. It takes two arguments: the data table (`result`) and the output file path (`"result.csv"`).
+1. **Reading CSV Files**: The `fread` function from the `data.table` package is used to read both CSV files directly into data tables (`offices` and `homes`).
+2. **Merging Data Tables**: The `merge` function combines these two tables based on the common column `employee_id`. The argument `by = "employee_id"` specifies that this column should be used for merging, and `all = FALSE` ensures only those rows are included where there is a match in both input tables.
+3. **Writing to CSV**: Finally, the `fwrite` function writes the merged data table to a new CSV file named `result.csv`.
 
-Make sure that `offices.csv` and `homes.csv` are in your working directory, or provide the full path to these files if they are located elsewhere.
+Make sure that the files `offices.csv` and `homes.csv` are in your working directory or provide the full path to these files when reading them into R using the `fread` function.
 

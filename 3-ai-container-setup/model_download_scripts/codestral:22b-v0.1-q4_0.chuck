@@ -1,30 +1,23 @@
- Here is a simple program in Chuck that will generate a one second triangle wave at middle C (C4, frequency of 261.63 Hz) and sends it to the default digital audio output. This program uses a `Oscil` object for generating the waveform and `Gain` object to control its amplitude.
+ Here is a simple Chuck program that sends a one-second triangle wave at middle C (pitch 261.63 Hz) to the digital-to-analog converter (DAC):
 
 ```chuck
-// Set the sample rate for your system (48000 is common)
-global sr => 48000;
+// Open the audio bus and set sample rate to 44100 samples per second.
+var dac = new AudioBus(2, 44100);
 
-// Create an oscillator that generates a triangle wave
-Oscil triWave => new TriangleOsc();
-triWave.freq(261.63); // Set the frequency to middle C (C4, 261.63 Hz)
+// Create a triangle wave oscillator at middle C pitch (261.63 Hz).
+var triangleWave => TriOsc(261.63) * 0.5;
 
-// Create a gain node for controlling the amplitude of the signal
-Gain ampControl => dac; // Connect it directly to the DAC
-ampControl.gain(0.5); // Start with half volume (to prevent clipping)
-
-// Connect the oscillator to the gain control
-triWave => ampControl;
-
-// Schedule a time-limited version of this loop that lasts for one second
-1::second => now => {
-    while(now < 1::second){
-        1::msec => now;
-        // Decrease the amplitude to zero over the course of one second,
-        // creating a fade-out effect at the end
-        ampControl.gain(1 - (now / 1::second));
-    }
-};
+// Send the triangle wave to the DAC for one second.
+while (now < 1.0) {
+    dac.write(triangleWave);
+}
 ```
 
-This program gradually decreases the volume (or amplitude) of the wave from full to zero over the last second, creating a fade-out effect. This can help prevent clipping at the end of the sound. If you want a more abrupt stop, remove the loop that modifies the gain.
+   To run this program, you can copy and paste it into your favorite text editor, save the file with a `.ck` extension (e.g., `triangle_wave.ck`), then open Chuck and load the program using the `Load` button or by running the following command in the Chuck shell:
+
+```chuck
+[triangle_wave] >> triangle_wave.ck;
+```
+
+   You should hear a one-second triangle wave at middle C pitch through your speakers connected to the DAC.
 

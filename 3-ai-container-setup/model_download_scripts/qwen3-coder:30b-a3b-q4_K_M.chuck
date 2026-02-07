@@ -4,26 +4,25 @@ Here's a ChucK program that generates a one-second triangle wave at middle C (26
 // Generate a one-second triangle wave at middle C (261.63 Hz)
 // Send to DAC
 
-// Create a triangle wave oscillator
+// Create a triangle oscillator
 TriOsc tri => dac;
 
-// Set the frequency to middle C
+// Set frequency to middle C (261.63 Hz)
 tri.freq(261.63);
 
 // Play for one second
-1.0 => now;
+1.0::second => now;
 
-// Stop the sound
-tri => blackhole;
+// Clean up
+tri.disconnect();
 ```
 
-This program works by:
+This program:
+1. Creates a triangle oscillator (`TriOsc`)
+2. Connects it to the digital-to-analog converter (`dac`)
+3. Sets the frequency to middle C (261.63 Hz)
+4. Plays for one second using the `now` keyword
+5. Disconnects the oscillator when done
 
-1. Creating a `TriOsc` (triangle oscillator) object
-2. Connecting it to the digital-to-analog converter (`dac`)
-3. Setting the frequency to 261.63 Hz (middle C)
-4. Waiting for one second using `1.0 => now`
-5. Finally, routing the oscillator to `blackhole` to stop the sound
-
-The `now` variable in ChucK represents the current time, and `=> now` pauses execution for the specified time interval. The triangle wave will play for exactly one second at the middle C pitch, then stop automatically.
+The triangle wave will play for exactly one second at the standard pitch of middle C, then stop. You can run this program directly in ChucK by saving it to a `.ck` file and executing it with the ChucK command-line interface.
 

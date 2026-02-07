@@ -17,14 +17,14 @@ result <- offices[homes, on = "employee_id"]
 # 4. Write the joined table to 'result.csv'
 fwrite(result, "result.csv")
 
-# Print confirmation message
-cat("Joined data has been written to result.csv\n")
+# Print a message to confirm the operation
+cat("The joined data has been written to result.csv\n")
 ```
 
 This program:
 1. Uses `fread()` to efficiently read both CSV files into data.tables
-2. Performs an inner join (which automatically keeps only matching rows) using the `[` operator with `on` parameter
-3. Writes the result to a CSV file using `fwrite()`
+2. Performs an inner join (which automatically keeps only rows with matching employee_id values) using the `[` operator with `on` parameter
+3. Writes the result to a new CSV file using `fwrite()`
 4. Includes a confirmation message
 
 The resulting `result.csv` will contain only employees who appear in both input files, with their work and home addresses.

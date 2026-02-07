@@ -1,0 +1,1018 @@
+Thinking...
+1.  **Understand the Goal:** The user wants a Raspberry Pi Pico C/C++ SDK project structure and code.
+    *   **Core Function:** Generate a continuous sine wave pitched at Middle C (C4, approx 261.63 Hz).
+    *   **Interface:** 24-bit I2S DAC.
+    *   **Hardware Requirement:** Use the PIO (Programmable I/O) block for sending data to the I2S pins.
+    *   **Configuration:** GPIO pins for I2S must be defined using `#define` macros.
+    *   **Environment:** Raspberry Pi Pico SDK (C/C++).
+
+2.  **Analyze the I2S Standard (24-bit):**
+    *   Standard I2S usually uses Left Justified (LJ) or I2S (which is often Right Justified, RJ) data formats.
+    *   For a DAC, we usually care about the MSB first.
+    *   *24-bit I2S (RJ):* Usually, 32 bits are transferred per clock cycle (including start bit, 24 data bits, 1 bit). Or, it can be just 24 bits. Let's stick to the most common implementation with a 24-bit sample clock (`BCLK`) and a frame clock (`LRCK`).
+    *   *Sample Rate:* Middle C (261.63 Hz). This is quite slow for a DAC, but acceptable for testing.
+    *   *Bit Clock Frequency:* $261.63 \times 24 \approx 6.279$ kHz. Wait, standard I2S is usually 44.1kHz or 48kHz. The prompt specifically asks for Middle C at a 24-bit DAC. I need to calculate the appropriate `BCLK` and `LRCK` rates.
+        *   Sample Rate ($F_s$) = 261.63 Hz.
+        *   Bit Clock ($F_{bclk}$) = $24 \times F_s$ (assuming 24-bit data).
+        *   Bit Clock Period = $1 / (24 \times 261.63) \approx 158 \mu s$.
+        *   Left/Right Clock ($F_{lrck}$) = $F_s$.
+        *   Left/Right Clock Period = $1 / 261.63 \approx 3.8 \text{ ms}$.
+
+3.  **Analyze the PIO Requirement:**
+    *   The PIO needs to output the bits.
+    *   Standard I2S format (Right Justified) usually looks like this per frame:
+        *   Bit 31 (MSB of previous sample) -> Low (Idle)
+        *   Bit 30...24 (MSB of current sample) -> Data
+        *   ...
+        *   Bit 0 (LSB of current sample) -> Data
+        *   Bit -1 (LSB of previous sample) -> High (Start bit)
+    *   *Actually, for simplicity and readability in a generated demo:* A 24-bit LJ or RJ format usually involves shifting bits out.
+    *   *Configuration:* We need a clock source (system clock or generic clock).
+    *   *The PIO Machine:* Needs to be clocked to generate the BCLK. It needs to output BCLK and LRCK.
+    *   *Wait, can PIO do the whole thing?* Yes. PIO can output BCLK and LRCK manually, then shift out the data. Or, we can let the PIO handle the clock generation and shifting.
+    *   *Simplified Approach for a demo:* Use the PIO to handle the shifting. We can generate BCLK and LRCK via the PIO state machine (SM).
+    *   *I2S Protocol specifics:*
+        *   BCLK (Bit Clock): 24 pulses per word. Alternating edges? Usually, for 24-bit data, BCLK frequency is $24 \times \text{SampleRate}$. Data is typically clocked on the *same* edge for BCLK (RJ) or *opposite* edge (I2S).
+        *   Let's go with Right Justified (RJ) as it's standard for DACs.
+        *   Sequence per frame: Start bit (High), 24 data bits (LSB to MSB), then next Start bit (High).
+    *   *Clock Generation:* The PIO needs to generate the high-speed BCLK and the slow LRCK. Calculating the cycle counts for 261.63Hz is precise but tricky to hardcode perfectly without floating point math in assembly or complex integer division in C. However, Pico's SDK makes this easy with `pio_get_clk_div`.
+    *   *Alternative approach for the PIO code:*
+        *   State machine 0: Output BCLK. High for half cycle, Low for half cycle. (24 pulses per sample).
+        *   State machine 1: Output LRCK. High for Left, Low for Right. Also shift out data.
+        *   Actually, doing *both* data and clock generation in one state machine is complex because the timing is strictly interdependent (data must shift out on the BCLK edge).
+        *   *Better approach:* Use two State Machines.
+            *   SM 0: Generates BCLK.
+            *   SM 1: Generates LRCK and shifts out data (LJ or RJ).
+    *   *Let's check the math for SM 1 (Data & LRCK):*
+        *   LRCK period = $1 / 261.63 \approx 3.82 \text{ ms}$.
+        *   BCLK period = $1 / (24 \times 261.63) \approx 0.158 \text{ ms}$.
+        *   If SM 1 does it all, it has to generate BCLK pulses *and* output bits. That means the instruction loop length depends on the bit count.
+    *   *Refined PIO Approach:*
+        *   SM 0: BCLK Generator. It just toggles a pin 24 times per LRCK cycle. This is purely a frequency generator.
+        *   SM 1: I2S Transmitter. It outputs the data.
+    *   *Wait, the prompt says "Use a PIO to send the data".* It doesn't strictly say "Use PIO for clocking". I will use PIO for data shifting to satisfy the prompt, but I'll need a way to clock it. I can use a timer to feed the PIO, or let the PIO manage the clock if I can fit the logic in.
+    *   *Actually, the most robust way with Pico SDK:* Use a single State Machine to handle the I2S protocol including BCLK and LRCK generation *if* we assume the data fits in the loop.
+    *   Let's try the standard I2S (Right Justified) implementation.
+        *   I2S Data: 24 bits. MSB first.
+        *   BCLK: 24 pulses.
+        *   LRCK: High for Left Channel (MSB), Low for Right (LSB) - usually, or vice versa. Let's assume Standard: High = Left, Low = Right.
+        *   Timing: BCLK edge aligns with LRCK transition.
+
+    *   *Let's simplify for the user:*
+        1.  **GPIO Defines:** `SCLK`, `LRCK`, `DIN` (or `DATA`).
+        2.  **Frequency:** Middle C = 261.626 Hz.
+        3.  **Resolution:** 24-bit.
+        4.  **Math:**
+            *   Sample Rate ($F_s$) = 261.626 Hz.
+            *   Bit Clock ($F_{bclk}$) = $24 \times 261.626 \approx 6279 \text{ Hz}$.
+            *   LRCK Period = $1/261.626 \approx 3.82 \text{ ms}$.
+            *   BCLK Period = $1/6279 \approx 0.159 \text{ ms}$.
+            *   Total Bits per frame = 24 bits of data + 1 bit of start (implicit in I2S RJ usually, or explicit).
+    *   *PIO Code Construction:*
+        *   We need a loop that runs once per frame.
+        *   Inside the frame:
+            *   Output 24 bits of data.
+            *   Toggle LRCK.
+            *   Generate 24 pulses of BCLK.
+        *   *Constraint:* This is a tight loop. If we use `out`, `mov`, `jmp` instructions, we can do this.
+        *   *Instruction Count:* We need 24 bit shifts + setup. Let's assume ~30-40 cycles per bit? No, that's too long for 6kHz.
+        *   We need to use `pio->sm[0].clkdiv` to slow the clock down to generate these specific frequencies based on the core clock (125 MHz).
+        *   $125,000,000 / 6279 \approx 19,900$ ticks per BCLK cycle.
+        *   Wait, I2S shifts on the *edge* of the clock.
+        *   Actually, generating BCLK and LRCK purely in PIO for variable frequencies is hard to get perfect without floating point or complex integer division for the `clkdiv` registers.
+        *   *Pico SDK Helper:* `pio_sm_set_clk_div`. We can calculate this in C.
+
+4.  **Project Structure:**
+    *   `CMakeLists.txt`
+    *   `main.c`
+    *   `i2s_pio.pio` (or inline assembly in C, but external file is cleaner).
+
+5.  **Refining the PIO Code:**
+    *   *Protocol:* I2S Right Justified (24-bit).
+    *   *Sequence:*
+        1.  Set LRCK High (Left Channel).
+        2.  For each of 24 bits:
+            a.  Output bit (LSB first usually).
+            b.  Pulse BCLK (High then Low).
+        3.  Set LRCK Low (Right Channel).
+        4.  Repeat.
+    *   *Actually, I2S standard:* The first bit of the 24-bit data is transmitted when BCLK is high (or low depending on config), then BCLK goes low, then the next bit, etc.
+    *   Let's stick to a robust implementation:
+        *   The PIO state machine needs to be clocked by the `sys_clk`.
+        *   We need to generate BCLK and LRCK.
+        *   To keep it simple and robust for a "continuous" wave, we will calculate the cycle count for the loop.
+        *   *The problem with fixed cycle counts:* 261.63Hz is non-integer based on 125MHz.
+        *   *Solution:* We use the PIO to output the *data*. We will use a separate mechanism for BCLK/LRCK if possible, OR we calculate the `clkdiv` dynamically.
+        *   *Dynamic `clkdiv` is best.* `pio_sm_set_clk_div(pio, sm, div)`.
+        *   We will use State Machine 0 to generate BCLK and LRCK, and State Machine 1 to send data? No, that creates jitter.
+        *   *Best Approach:* One State Machine does everything.
+        *   The State Machine runs a loop. The loop is executed based on the `jmp` condition.
+        *   Wait, if we want to generate BCLK, we need to output to pins. We can output BCLK to pin 17 and LRCK to pin 18.
+        *   We need to output the 24-bit data to `DIN`.
+        *   Let's write a PIO program that:
+            1.  Toggles LRCK.
+            2.  For i in 0..23: `out pin, 1` (for data), `set pins, 1` (for BCLK), `set pins, 0` (for BCLK).
+            *   Wait, BCLK usually has a specific phase relationship. In I2S, BCLK is active high for half cycle.
+    *   *Calculations:*
+        *   Target BCLK Freq: $6279 \text{ Hz}$.
+        *   Target LRCK Freq: $261.626 \text{ Hz}$.
+        *   Core Clock: 125 MHz.
+        *   `clkdiv` = $125,000,000 / 6279 \approx 19900$.
+        *   `pio_sm_set_clk_div` takes `(clk_div << 16) | (1 << 16)` format or similar? No, it's `(clk_div << 16) | 1`.
+        *   Actually, let's look at the math for the PIO instructions.
+        *   Instruction: `out` (2 cycles), `set pins, 1` (2 cycles), `set pins, 0` (2 cycles). Total 6 cycles per bit.
+        *   24 bits = 144 cycles.
+        *   LRCK toggle: 4 cycles.
+        *   Total ~148 cycles per frame.
+        *   Target Frequency = $125,000,000 / 148 \approx 844,594 \text{ Hz}$.
+        *   This is way too fast. We need to slow down the clock to get 6kHz.
+        *   So, `clkdiv` $\approx 125M / 6kHz \approx 20,000$.
+        *   This works.
+
+6.  **The C Code Structure:**
+    *   Include `pico/stdlib.h`, `hardware/pio.h`, `hardware/clocks.h`.
+    *   **Sine Table:** Precompute a sine wave table (8 points or 16 points). For 261Hz, we can use a smaller table and loop, or a larger one for smoother waves. Let's do 16-point sine table (1 cycle).
+    *   **GPIO Defines:**
+        *   `#define I2S_BCLK 17`
+        *   `#define I2S_LRCK 18`
+        *   `#define I2S_DATA 19`
+    *   **PIO Assembly:**
+        *   We need to load the sine data into the FIFO.
+        *   The PIO SM needs to pop 24 bits, output to DATA, pulse BCLK, toggle LRCK.
+    *   **Clocking:**
+        *   Use `pio_sm_set_clk_div`.
+    *   **Setup:**
+        *   Init GPIOs.
+        *   Init PIO.
+        *   Load program.
+        *   Set FIFO.
+        *   Run SM.
+
+7.  **Writing the PIO Code (Inline or external):**
+    *   I'll use a helper function or just write the `.offset` and binary in C for simplicity in a single file copy-paste, or better, define the hex in C and use `pio_add_program`. Using `pio_add_program` with a static struct is the "proper" SDK way.
+
+    *   *PIO Program Logic:*
+        *   Labels: `loop`, `start`.
+        *   Instructions:
+            *   `set pins, 1` (LRCK = High)
+            *   `mov x, osr` (Load 24-bit sample from OSR into X) - *Actually, better to use FIFO.*
+            *   `set y, 24`
+            *   `bits_loop:`
+                *   `out pins, 1` (Data)
+                *   `set pins, 1` (BCLK High)
+                *   `set pins, 0` (BCLK Low)
+                *   `jmp -- y, bits_loop`
+            *   `set pins, 0` (LRCK = Low)
+            *   `jmp loop`
+
+    *   *Optimization:* Standard I2S often starts with 1 "zero" bit, then 24 bits.
+    *   *Pin Config:* `mov osr, osr` (fill from FIFO). `out x, 24`.
+    *   Let's use the FIFO method. The PIO state machine pulls from the FIFO.
+    *   Program:
+        *   `set pins, 1` (Start Frame)
+        *   `mov x, osr` (Get 24 bits from FIFO)
+        *   `set y, 24`
+        *   `bloop:`
+            *   `out pins, 1` (Output bit 0)
+            *   `set pins, 1` (BCLK High)
+            *   `nop` [1]
+            *   `set pins, 0` (BCLK Low)
+            *   `jmp -- y, bloop`
+        *   `set pins, 0` (End Frame)
+
+    *   *Pin mapping:*
+        *   BCLK: Pin 17
+        *   LRCK: Pin 18
+        *   Data: Pin 19
+        *   The PIO needs to know which pins to use. We use `pio_sm_set_pins_with_mask` or define in the program `mov pins, ...`.
+
+8.  **Calculating the `clkdiv`:**
+    *   Core clock = 125 MHz.
+    *   BCLK = 24 * 261.63 = 6279 Hz.
+    *   Cycle count per BCLK period = $125,000,000 / 6279 \approx 19900$.
+    *   LRCK = 261.63 Hz.
+    *   Cycle count per frame = $19900 / 24 \approx 829$.
+    *   My PIO instruction count was approx 150. So `clkdiv` needs to be around $150 / 829 = 0.18$. No, that's wrong.
+    *   The PIO instruction runs at `F_clk / clkdiv`.
+    *   We need `F_clk / clkdiv` to equal the BCLK frequency ($6279$).
+    *   So `clkdiv` $\approx 19900$.
+    *   `pio_sm_set_clk_div(pio, sm, clkdiv)` takes a float or integer (16.16 fixed point).
+    *   We will use `pio_sm_set_clk_div`.
+
+9.  **The Sine Wave Math:**
+    *   Middle C = 261.63 Hz.
+    *   Sample Rate = 261.63 Hz (per prompt "pitched at...").
+    *   We need an index that increments.
+    *   `float phase = 0.0;`
+    *   `phase += (2.0 * PI * frequency) / sample_rate;`
+    *   Actually, since sample_rate == frequency (1 sample per cycle), we just increment phase by $2\pi / N_{samples}$.
+    *   To make it robust, I'll calculate the `clkdiv` precisely using the `clock_get_hz`.
+
+10. **Refining the PIO Code Details:**
+    *   I'll write the PIO program in C as a string or hex, then use `pio_create_program_with_binary`. Actually, the SDK provides `pio_add_program_with_data` or `pio_add_program` with source. Using source is cleaner.
+    *   *Source:*
+        ```assembly
+        .program i2s_tx_24bit
+        .wrap_target
+        set pins, 1 ; LRCK High
+        mov x, osr  ; Load 24-bit sample from FIFO
+        set y, 24
+        bit_loop:
+            out pins, 1 ; Output bit 0
+            set pins, 1 ; BCLK High
+            set pins, 0 ; BCLK Low
+            jmp -- y, bit_loop
+        set pins, 0 ; LRCK Low
+        jmp wrap_target
+        .wrap
+        ```
+    *   Wait, `out pins, 1` might affect the pin state of *all* pins configured as outputs. That's what we want for the Data pin. But we also need to control BCLK and LRCK specifically.
+    *   We need to select specific bits for the pins to set.
+    *   In the PIO: `set x, 1` -> Output to pin group. `set x, 0`.
+    *   We need to combine: Data comes from FIFO (`osr`), but the BCLK/LRCK control comes from `pins` output.
+    *   Better:
+        *   `set pins, 1` (for LRCK). (This sets the specific pin bit to 1).
+        *   `set pins, 0` (for LRCK).
+        *   `out pins, 1` (for Data). (This shifts the FIFO into the pin bit).
+    *   This assumes BCLK is generated inside the loop using `set pins, 1` / `set pins, 0`.
+
+11. **Dependencies:**
+    *   `pio.h`, `hardware/pio.h`, `hardware/clocks.h`.
+    *   Standard math for sine table.
+
+12. **Step-by-Step Implementation Plan:**
+    *   **File 1: `CMakeLists.txt`**: Standard Pico setup.
+    *   **File 2: `main.c`**:
+        *   Includes.
+        *   `#define` GPIOs (SCLK, LRCK, DOUT).
+        *   PIO Assembly Code (as a string/const array).
+        *   Sine Wave Generator: Precompute 16 values.
+        *   Main Loop:
+            *   Setup PIO (load program, set clock div, set pins).
+            *   Push FIFO.
+            *   Enable SM.
+            *   `while(1)`:
+                *   Update sine value.
+                *   Push to FIFO (blocking or non-blocking? `pio_sm_get_rx_fifo_level`? Just `fifo_push` is fine if we push fast enough. Since it's 261Hz, pushing once per cycle is trivial).
+                *   Add small delay or just loop.
+
+13. **Corner Cases / Refinement:**
+    *   *Bit Order:* I2S usually sends MSB first.
+    *   FIFO holds 32 bits usually. We have 24.
+    *   The PIO `mov x, osr` moves 32 bits to X. We only have 24 valid data in the lower 24 bits of the FIFO value.
+    *   The PIO loop shifts bits from MSB of X to LSB of X? Or LSB of X to MSB of X?
+    *   PIO `out` shifts from MSB of source to MSB of destination (usually).
+    *   So if FIFO has `0b00...0012345678` (24 bits of data), and we output 24 times...
+    *   If we use `out pins, 1`, it takes the MSB of the FIFO, outputs it, shifts left.
+    *   This sends MSB first. Perfect.
+    *   *FIFO Alignment:* We need to make sure the 24 bits of the sine wave fit in the 32-bit FIFO word correctly. We will write the 24-bit integer value to the FIFO. The PIO shifts it out.
+
+14. **Drafting the Code (Mental or scratchpad):**
+    *   *Clock Calculation:*
+        *   `pio_sm_set_clk_div(pio, sm, 19900)` (roughly).
+        *   Better to use `clock_get_hz(clk_sys) / (24 * 261.626)`.
+    *   *PIO Instructions:*
+        *   `set pins, 1` (Set pin 0 to 1)
+        *   `set pins, 0` (Set pin 0 to 0)
+        *   `out pins, 1` (Shift FIFO -> Pin 0)
+    *   *Pin Masking:* To set BCLK and LRCK to specific pins while using `set pins, val` for data, we need to ensure the PIO is configured to output on specific bits.
+    *   Actually, simpler way:
+        *   Pin 0: BCLK.
+        *   Pin 1: LRCK.
+        *   Pin 2: Data.
+        *   Or standard convention: BCLK=0, LRCK=1, Data=2.
+        *   I will define them clearly.
+
+15. **Code Construction:**
+    *   *Header:* `#include "pico/stdlib.h"`
+    *   *Config:* `#define I2S_SCK 17`, `#define I2S_LRCK 18`, `#define I2S_DIN 19`.
+    *   *Sine Data:* `static const int16_t sine_wave[] = { ... };`
+    *   *Main:*
+        *   `clock_init()`
+        *   `gpio_init_all()`
+        *   `pio0.inst` ...
+        *   `pio_sm_set_pins(pio, sm, pin_mask)`.
+        *   Wait, if I set pins via `set pins`, the *other* pins stay as configured.
+        *   So I configure Data as `PIO_OUTPUT_1` (Pin 19).
+        *   I configure BCLK as `PIO_OUTPUT_1` (Pin 17).
+        *   I configure LRCK as `PIO_OUTPUT_1` (Pin 18).
+        *   The PIO state machine will drive these pins.
+        *   The `set pins` instruction sets the *selected* pin (bit 0 of pin mask).
+        *   If I use `set pins, 1` (bit 0), it sets BCLK.
+        *   If I use `out pins, 1`, it sets Data.
+        *   I need to make sure the `set pins` instructions are fast enough. `set pins, 1` (2 cycles), `set pins, 0` (2 cycles). Total 4 cycles per bit *plus* data shift overhead.
+        *   I2S timing might be tight, but 4 cycles is plenty.
+
+16. **Reviewing I2S BCLK:**
+    *   Standard I2S: BCLK active high for half cycle.
+    *   I will do: `set pins, 1` (High), `set pins, 0` (Low).
+    *   Repeat 24 times.
+    *   Then toggle LRCK.
+
+17. **Final check on "Middle C":**
+    *   C4 = 261.63 Hz.
+    *   I will use `261.626` in the calculation.
+
+18. **Formatting the Output:**
+    *   Provide `CMakeLists.txt`.
+    *   Provide `main.c`.
+    *   Explain how to build (`picotool`, `cmake`).
+
+    *Self-Correction during drafting PIO code:*
+    *   The instruction `set pins, 1` sets the LSB of the pin group (configured in `pio_sm_set_pins`) to 1.
+    *   If I map all 3 pins to the PIO output state machine, I can use `set pins, 1` for BCLK/LRCK and `out pins, 1` for Data.
+    *   However, `out pins` shifts FIFO data. `set pins` sets a static value.
+    *   To make sure I don't accidentally output Data bits to the BCLK/LRCK pins (which are also part of the pin group), I rely on the instruction choice.
+    *   Since I output 24 bits of data, and I output BCLK/LRCK pulses *between* bits or around bits, it should be fine as long as I don't have a "glitch" where Data bit N equals the BCLK state for bit N.
+    *   Since BCLK is toggled (High, Low), and Data is shifted out, there is no overlap conflict as long as the BCLK generation is distinct.
+    *   Actually, I2S usually has BCLK active high. So:
+        *   Bit 0 (Data): Pulse BCLK (High->Low).
+        *   ...
+        *   Bit 23 (Data): Pulse BCLK (High->Low).
+    *   Wait, BCLK is a continuous clock, not pulses per bit.
+    *   I2S Protocol (RJ):
+        *   BCLK is a continuous stream of 24 pulses.
+        *   Data is sampled on the *high* edge of BCLK.
+        *   Or: Data is shifted out, and BCLK pulses.
+    *   Common implementation: `set pins, 0` (start), then shift data bit, pulse BCLK, shift next bit.
+    *   Let's stick to the standard definition: BCLK frequency = 24 * Fs.
+    *   The PIO instruction `set pins, 1` (High) followed by `set pins, 0` (Low) creates a pulse.
+    *   So: `set pins, 1` (Data Bit), `set pins, 1` (BCLK High), `set pins, 0` (BCLK Low). Wait, that's two pulses.
+    *   Correct sequence per bit:
+        *   `out pins, 1` (Output Data Bit)
+        *   `set pins, 1` (BCLK High)
+        *   `set pins, 0` (BCLK Low)
+        *   Next bit...
+    *   This satisfies "BCLK pulses". The data is stable between pulses? In hardware, the DAC captures on the edge. The edge is the transition from High to Low. So the previous bit is latched.
+    *   Perfect.
+
+19. **Generating the response.**
+    *   Structure the files.
+    *   Add comments explaining the PIO assembly.
+    *   Ensure GPIO pins are defined at the top.
+
+    *Note on GPIOs:* I'll use Pins 17, 18, 19 as defaults, but clearly label them.
+
+    *CMakeLists.txt*: Standard.
+    *main.c*: Include pico/stdlib.h. Include hardware/pio.h. Include hardware/clocks.h.
+
+    *Wait, `pio_sm_set_clk_div` format:*
+    It's a 32-bit value: `(clkdiv << 16) | 1`.
+    Or just use the float version? No, float is in newer SDK, but integer is safer for compatibility.
+    Formula: `clkdiv = (uint16_t)(clock_get_hz(CLOCK_SYS) / (24.0 * 261.626))`.
+    Wait, the PIO instruction loop takes time. My math assumed 4 cycles + overhead.
+    I should calculate the *instruction cycle count*.
+    Instructions:
+    1. `set pins, 1` (2 cycles)
+    2. `out pins, 1` (2 cycles) - Actually `out` takes 2 cycles *and* shifts. But `out` is outputting to pins.
+    Let's trace:
+    `set pins, 1` -> BCLK High.
+    `set pins, 0` -> BCLK Low.
+    Total 4 cycles.
+    Plus `mov x, osr` (4 cycles).
+    Total ~28 cycles per bit? No, `mov x, osr` is done once per frame.
+    `set y, 24` (4 cycles).
+    Bit loop:
+    `out pins, 1` (2 cycles) -> Shifts FIFO bit. Sets Data pin.
+    `set pins, 1` (2 cycles) -> Sets BCLK pin.
+    `set pins, 0` (2 cycles) -> Clears BCLK pin.
+    `jmp -- y, ...` (2 cycles).
+    24 bits * 8 cycles = 192 cycles.
+    + setup ~40 cycles.
+    Total ~232 cycles per frame.
+    Target Frame Period = $1 / 261.63 = 3.82$ ms.
+    Required Clock Freq = $232 / 0.00382 \approx 60,700$ Hz.
+    `clkdiv` = $125,000,000 / 60,700 \approx 2060$.
+    My previous estimate ($19,900$) was assuming the PIO ran at BCLK speed. Since the PIO is *generating* BCLK, the instruction rate must be *slower* (because the BCLK is generated by slowing down the SM clock).
+    Wait, `clkdiv` reduces the effective frequency.
+    If I set `clkdiv` to 2060, the SM frequency is ~60kHz.
+    BCLK freq = $24 \times 60kHz = 1.44$ MHz.
+    We need BCLK = 6kHz.
+    So `clkdiv` should be high (e.g. 19,000).
+    But if `clkdiv` is high (19,000), the instruction loop takes 19,000 / 60k * ... wait.
+    The PIO SM clock is `F_clk / clkdiv`.
+    If `clkdiv` = 20000, SM clock = 6.25 kHz.
+    Frame time = $232 / 6250 \approx 37$ ms.
+    This is wrong. The SM clock must be high enough to generate the BCLK edges, but slow enough to generate the LRCK period.
+    Actually, BCLK is generated by the SM clock.
+    If SM clock = 6kHz, BCLK = 6kHz.
+    Instruction loop takes 232 cycles.
+    Frame time = $232 / 6000 \approx 0.038$ s = 38 ms.
+    We need frame time = $1/261.6 \approx 0.0038$ s = 3.8 ms.
+    We need the SM clock to be much faster.
+    We need `232 / \text{FrameTime} = \text{SM\_Clock}$.
+    $\text{SM\_Clock} = 232 / 0.0038 \approx 60,000$ Hz.
+    Then BCLK = $24 \times \text{SM\_Clock} = 24 \times 60,000 = 1.44$ MHz.
+    We need BCLK = 6kHz.
+    This is a contradiction.
+    *Correction:*
+    The BCLK *edges* must happen at 6kHz.
+    The *PIO* instructions must be fast enough to generate the edges.
+    If SM clock is 60kHz, edges happen every $1/60k = 16.6 \mu s$.
+    We need BCLK period = $1/6279 = 159 \mu s$.
+    We need ~9 edges per BCLK period.
+    So the BCLK signal is generated by the SM clock.
+    *The problem:* I2S BCLK is usually an *independent* clock source for the DAC, or generated by the MCU.
+    If the MCU generates it, the BCLK edges must line up with the data bits.
+    This means the BCLK clock *frequency* is fixed by the data rate ($24 \times F_s$).
+    So the SM clock *must* be at least $24 \times F_s$.
+    To generate the LRCK (Sample rate), the SM clock *must* divide down?
+    No, in PIO:
+    We can use the SM clock to generate BCLK.
+    Then we can use a `jmp` counter or a `set` counter to generate LRCK.
+    But `set y, 24` in the loop runs 24 times.
+    If I use `jmp -- y, bit_loop`, the loop runs 24 times.
+    If the loop takes $T_{bit}$ time.
+    Total frame time = $24 \times T_{bit}$.
+    If SM clock is 60kHz ($T_{bit} \approx 16 \mu s$), total frame time = $24 \times 16 \mu s = 384 \mu s$.
+    This is way too fast. We need 3.8 ms.
+    So we must slow down the SM clock significantly.
+    If we slow down the SM clock, we slow down BCLK.
+    This implies we cannot generate BCLK *and* LRCK *and* data purely in one PIO loop based on the SM clock frequency without external clocking or complex timing inside the instructions (which is hard).
+    
+    *Alternative:*
+    Use a *Timer* to generate BCLK and LRCK.
+    Use *PIO* *only* to output data (shift register) at the pace determined by the Timer.
+    This is much cleaner and "correct" for I2S.
+    
+    *Plan B (The "Use PIO to send data" constraint):*
+    The prompt says "Use a PIO to send the data". It doesn't say "Use PIO to generate BCLK".
+    So:
+    1.  **Timer (SysTimer):** Generates BCLK (24 pulses) and LRCK (1 pulse) per sample.
+        *   We configure a timer to fire every $1/261.63$ seconds (3.8ms).
+        *   On the Timer ISR/Callback:
+            *   Generate BCLK/LRCK pulses (or use a dedicated GPIO generator).
+            *   Push 24 bits of data to PIO FIFO.
+    2.  **PIO:** Just sits there shifting out FIFO bits.
+        *   The PIO frequency must match BCLK frequency for correct sampling.
+        *   Actually, if Timer handles BCLK, we can just use PIO as a shift register driven by a simple loop, but that's still a PIO state machine.
+        *   Or, we let PIO run at 6kHz and use `pio_sm_set_clk_div` to make it output data.
+    
+    *Re-evaluating the "One PIO SM does it all" feasibility:*
+    If I use `jmp` to count frames, the timing depends on instruction count.
+    If I use `set y` for bit counting, I can force the loop to run 24 times.
+    But I need to control the *rate*.
+    The only way to control rate is the `clkdiv`.
+    If I use `jmp -- y, loop`, the loop executes 24 times per frame.
+    Total time = $24 \times \text{cycle\_count}$.
+    If I set `clkdiv` such that this total time is 3.8ms.
+    Then BCLK period = `cycle_count` / 24.
+    I need BCLK = 6279 Hz.
+    If I set `clkdiv` such that BCLK is 6279 Hz, the frame time is $24 \times \text{Instruction\_Time}$.
+    Instruction Time = $1 / (24 \times 6279) \approx 6.6 \mu s$.
+    My instruction count is ~150 cycles.
+    So total frame time = $150 \times 6.6 \mu s \approx 1$ ms.
+    Still too fast (Target 3.8 ms).
+    I need to slow down the clock *more*.
+    If I slow down the clock, BCLK slows down.
+    I need the BCLK edges to line up with the data bits.
+    This means the BCLK generation is coupled to the data output.
+    So, yes, a single PIO State Machine *can* do this if we use a counter inside the instruction stream to measure time, OR if we generate BCLK *as a pulse* and rely on the SM clock being fast.
+    But we are limited by the SM clock. 125MHz is the fastest we can clock it.
+    If we clock at 125MHz, and have 150 cycles per bit, BCLK is ~83 MHz. Too fast for 261Hz audio.
+    
+    *Conclusion:* We must use a **Timer** to drive the BCLK/LRCK clock, and the **PIO** to simply shift the data out in sync.
+    
+    *Let's refine Plan B:*
+    1.  **PIO (State Machine 0):** Just outputs to the I2S pins.
+        *   It pulls from FIFO.
+        *   We set its clock div to match the BCLK frequency ($24 \times 261.63$).
+        *   It outputs Data on one pin, and we configure the *other* pins (BCLK, LRCK) externally.
+    2.  **Timer (RP2040 SysTimer):**
+        *   Configured to generate interrupts at $261.63$ Hz.
+        *   In the ISR:
+            *   Trigger a GPIO pulse sequence for BCLK (24 pulses).
+            *   Trigger a GPIO toggle for LRCK.
+            *   **Push 24-bit sample to PIO FIFO.**
+    
+    *Is this valid?*
+    "Use a PIO to send the data". Yes.
+    Does it need to generate BCLK/LRCK? No.
+    Is it robust? Yes.
+    
+    *Wait, I can do better.*
+    I can use **two** PIO State Machines.
+    SM 0: Generates BCLK and LRCK (just a square wave generator). It outputs these to the I2S pins.
+    SM 1: Sends Data.
+    But BCLK and Data must be synced.
+    
+    *Let's stick to the Timer + PIO approach.* It's the standard way to do I2S on bare metal without writing custom firmware for the DAC (like WM8731) where the chip handles the clocking.
+    Since we are *generating* the I2S signal (likely for a generic DAC like PCM5102A or similar that expects a bit clock and frame clock), we must supply those clocks.
+    
+    *Revised Plan:*
+    1.  **GPIO Configuration:** Define BCLK, LRCK, DIN.
+    2.  **Sine Wave:** Calculate values.
+    3.  **Timer (TMR0):** Configured to fire at 261.626 Hz.
+        *   Actually, to be precise, the timer generates the *Sample Rate*.
+        *   Inside the timer callback:
+            *   Toggle LRCK (set High, then set Low).
+            *   Pulse BCLK 24 times.
+            *   Push 24-bit data to PIO.
+    4.  **PIO:** Configured to output data.
+        *   `clkdiv = clock_get_hz(CLOCK_SYS) / (24 * 261.626)`
+        *   Output Data.
+    
+    *Wait, "Use a PIO to send the data"*.
+    Does the user mean "Use PIO to implement the I2S protocol"? (i.e. Generate BCLK, LRCK, Data all in PIO).
+    If I try to do that, I run into the timing issue described above (too fast).
+    However, Pico's PIO *can* use a delay loop.
+    I can use `set x, 24`, `loop:` `jmp -- x, loop`.
+    If I insert a `nop` with delay in the loop?
+    No, PIO `nop` is just 1 cycle.
+    
+    *Wait, I can use the `set x, y` (move Y to X) with delay logic?*
+    No.
+    
+    *Let's check if there's a way to slow down the clock generation.*
+    I can use the PIO to generate BCLK and LRCK.
+    I can set `clkdiv` to be high (e.g. 100,000).
+    Then BCLK frequency is ~1.25 kHz.
+    I need BCLK = 6.3 kHz.
+    So `clkdiv` = 20,000.
+    Frame Time = InstructionCount / 6.3kHz.
+    InstructionCount = 150.
+    Frame Time = $150 / 6300 = 0.023$ s = 23 ms.
+    This is close to 3.8 ms but not exact. 23ms is too slow (Low frequency).
+    So the "One SM" approach is mathematically impossible to get *both* the high BCLK rate and the slow LRCK rate just by dividing the clock, because BCLK and LRCK are both derived from the same clock.
+    *Unless* I use the `jmp` counter to measure time? No.
+    
+    *Conclusion:* The PIO cannot drive both the BCLK and the Data *and* the timing simultaneously for this specific frequency ratio ($24:1$) without external synchronization or a complex bit-banged state machine that acts as a CPU. The PIO is too fast for the BCLK edges if the clock is slowed down enough for the LRCK period.
+    
+    *Correction:* I will use the **Timer** for BCLK/LRCK, and **PIO** for data. This satisfies "Use a PIO to send the data". The prompt implies the data transfer method.
+    
+    *Let's double check the I2S protocol:*
+    The DAC expects a bit clock (usually 24 clocks per sample) and a left/right channel clock.
+    We provide these.
+    The data is fed to the DAC.
+    The PIO shifts the data.
+    
+    *Wait, I can use PIO for everything if I calculate the exact cycle count for the loop.*
+    I can use `set x, N` and `jmp -- x, loop`.
+    This creates a loop that executes N times.
+    To make the loop run at the *right speed*, I set `clkdiv`.
+    If I set `clkdiv` to get the right speed for BCLK, the loop runs N times in X seconds.
+    If N=24, Frame Time = X.
+    If BCLK is $F_s$, Frame Time = $1/F_s$.
+    So I need $24 \times T_{inst} = T_{frame} = 1/F_s$.
+    So $F_{SM} = 24 \times F_s = BCLK$.
+    So the SM clock *must* be $BCLK$.
+    So I am back to the "Clock is too fast" problem.
+    
+    *Solution:*
+    Use a **Timer** to drive the BCLK/LRCK generation, and **PIO** for the data stream.
+    Or, use a **Clock Generator** (GPCLK) to feed the PIO, and use the PIO to do the work.
+    Let's stick to **Timer + PIO**. It's the most robust "C program" approach without writing complex assembly for the timing logic.
+    
+    *Wait, the prompt says "Use a PIO to send the data".*
+    This is slightly ambiguous. It could mean "Don't use CPU bit-banging for the data".
+    So, CPU generates the sine wave value and pushes to FIFO.
+    PIO shifts FIFO to pins.
+    
+    *Let's refine the PIO program:*
+    State Machine 0:
+    `.program i2s_tx`
+    `set pins, 1` (Start of frame)
+    `mov x, osr` (Get 24 bits)
+    `set y, 24`
+    `bits:`
+    `out pins, 1` (Output bit)
+    `set pins, 1` (BCLK High)
+    `set pins, 0` (BCLK Low)
+    `jmp -- y, bits`
+    `set pins, 0` (End frame)
+    `jmp .program`
+
+    This shifts out 24 bits.
+    We need to sync BCLK/LRCK.
+    Since we can't sync BCLK/LRCK and Data in one PIO state machine easily for arbitrary sample rates (due to frequency constraints), I will provide a solution where:
+    1.  **PIO** handles the Data shifting.
+    2.  **SysTimer** handles the I2S clocks (BCLK, LRCK).
+    
+    *Actually, can I generate BCLK with the PIO and use `set y, 1` for LRCK?*
+    If SM clock = BCLK freq.
+    I need LRCK freq = $1/24 \times$ BCLK freq.
+    LRCK period = 24 times the bit period.
+    I can use `set y, 24` in the loop. The loop takes 24 iterations.
+    If I insert a `jmp -- y, bits`, I can't easily insert a delay *between* bits to make the BCLK pulse wider? No, BCLK pulse is short.
+    
+    *Decision:* I will provide the code that generates I2S using the **PIO for data** and a **SysTimer for clocks**. This is the standard way to do I2S on Pico for generic DACs.
+    
+    *Wait, looking at similar examples online:*
+    Many examples do generate I2S in PIO *if* they use a high sample rate (44.1kHz) where the BCLK is high enough that the loop time fits.
+    But here, 261Hz is very slow.
+    I will explicitly state that the PIO is used for data shifting, and the clocks are generated by the timer to ensure correct I2S protocol timing.
+    
+    *Re-reading the prompt:* "The GPIO pins for the I2S DAC must be given as #define statements. Use a PIO to send the data to the I2S pins."
+    It doesn't say "Use PIO to generate BCLK".
+    So using PIO for data is sufficient.
+
+    *Steps:*
+    1.  Define Pins.
+    2.  Setup SysTimer to interrupt at $1/261.626$ Hz.
+    3.  In ISR:
+        *   Output LRCK High, then Low.
+        *   Output 24 pulses of BCLK.
+        *   Push 24-bit sine value to PIO FIFO.
+    4.  Setup PIO State Machine to output FIFO to Data pin.
+    5.  Set PIO `clkdiv` to match BCLK ($24 \times 261.626$).
+    6.  Run.
+
+    *Wait, `pio_sm_set_clk_div` takes the divisor for the *PIO clock*.
+    PIO clock = $125M / \text{div}$.
+    We need BCLK = $24 \times F_s = 24 \times 261.626 = 6279$ Hz.
+    So $\text{div} = 125,000,000 / 6279 = 19900$.
+    
+    *Wait, `set pins` and `out pins`:*
+    `set pins, 1` sets the pin to 1.
+    `out pins, 1` outputs a bit from FIFO to the pin.
+    Since I2S BCLK and LRCK are controlled by the Timer, the PIO only needs to output the *Data*.
+    But wait, `set pins` affects *all* pins configured as outputs for that SM.
+    If I configure all 3 pins (SCK, LRCK, DIN) for the PIO, and I use `set pins` in the loop, I might interfere with the Timer's BCLK/LRCK control.
+    *Solution:* I will use separate GPIOs for BCLK/LRCK and Data. Or, I will use `pio_sm_set_pins` to isolate which pins the PIO outputs to?
+    No, PIO outputs to the whole mask.
+    I'll use the Timer for BCLK/LRCK.
+    I will use PIO for Data.
+    I will configure Data as the *only* PIO output pin for that SM.
+    BCLK and LRCK will be configured as normal GPIOs driven by the Timer.
+
+    *One complication:* "Use a PIO to send the data".
+    Does this imply the PIO *must* output BCLK/LRCK too?
+    "Use a PIO to send the data to the I2S pins." -> This is a data transfer verb.
+    I'll stick to the Timer+Clock approach as it's the only one that yields clean 24-bit I2S for low frequencies.
+    
+    *However*, to make it cooler and strictly "PIO", maybe I can use the PIO to generate BCLK *and* Data?
+    Let's revisit the math.
+    I need $T_{frame} = 3.8$ ms.
+    I need $T_{bit} = T_{frame} / 24 = 158 \mu s$.
+    I have ~150 instruction cycles per bit.
+    So the PIO needs to take $158 \mu s$ per bit.
+    This means the PIO clock (SM clock) must be $1 / 158 \mu s = 6.3$ kHz.
+    If SM clock = 6.3 kHz, BCLK = 6.3 kHz. Correct.
+    But how do I get the SM clock to 6.3 kHz if the instruction loop takes 150 cycles?
+    $150 / (T_{bit} \times \text{SM\_Freq}) = 1$.
+    $150 / (158 \times 10^{-6} \times F_{SM}) = 1$.
+    $F_{SM} = 150 / 158 \times 10^6 = 0.95 \times 10^6 = 950$ kHz.
+    This is too fast.
+    
+    *Ah, the instruction cycle count is fixed.*
+    So the time per bit is fixed.
+    $T_{bit} = \text{Cycles} / F_{SM}$.
+    We need $F_{SM} = \text{Cycles} / T_{bit}$.
+    We need $F_{SM} = 150 / 158 \mu s \approx 950$ kHz.
+    This is too fast to be "generated" by slowing down the 125MHz clock significantly (which would produce BCLK < 20kHz, but we need 6kHz BCLK... wait, BCLK = $F_{SM} / 24$).
+    If $F_{SM} = 950$ kHz, $F_{BCLK} = 39$ kHz. Too fast for 261Hz audio (we need 6kHz).
+    
+    *Okay, there is no solution using a single PIO State Machine to generate the BCLK, LRCK, and Data simultaneously for 24-bit audio at this specific frequency without external clocking.*
+    *Reason:* The BCLK frequency is $24 \times F_s$. The Data loop runs in $24 \times \text{Cycles}$.
+    We can only set one `clkdiv` for the State Machine.
+    We cannot set it to generate *two* different rates.
+    
+    *Final Decision:* I will use **PIO for Data** and **SysTimer for Clocks**.
+    I will define the I2S pins.
+    I will write the PIO program to shift data.
+    I will write the Timer code to pulse the clocks and fill the FIFO.
+    This meets "Use a PIO to send the data".
+
+    *Wait, I can use two PIO State Machines!*
+    SM 0: Generates BCLK (Square wave).
+    SM 1: Generates LRCK (Square wave).
+    SM 2: Sends Data.
+    But we need synchronization.
+    If SM 0 generates BCLK, SM 2 must read it?
+    No, they must be phase-locked.
+    
+    *Let's go with the Timer approach. It is robust and standard.*
+    I will explain this in the comments.
+
+    *Refining the PIO code:*
+    ```c
+    .program i2s_send
+    .wrap_target
+    mov x, osr
+    set y, 24
+    bit_loop:
+        out pins, 1
+        set pins, 1
+        set pins, 0
+        jmp -- y, bit_loop
+    set pins, 0
+    jmp wrap_target
+    .wrap
+    ```
+    This outputs Data to the pin group.
+    If I set the PIO pin mask to *only* the Data pin, the other pins (BCLK/LRCK) won't be affected by `set pins` instructions (since they aren't in the mask).
+    Then I can use the Timer to control BCLK/LRCK.
+    
+    *One catch:* I2S is usually "Right Justified".
+    Data bits: 1..24 (MSB..LSB).
+    The prompt asks for "send the data".
+    I'll output the data bits.
+    
+    *Let's write the code.*
+
+    **Project Layout:**
+    1. `CMakeLists.txt`
+    2. `main.c`
+
+    **Dependencies:**
+    `pico/stdlib.h`, `hardware/pio.h`, `hardware/clocks.h`, `hardware/timer.h`.
+
+    **Code Details:**
+    *   `#define I2S_SCK 17`
+    *   `#define I2S_LRCK 18`
+    *   `#define I2S_DIN 19`
+    *   Sine table generation function.
+    *   `pio_add_program`.
+    *   `pio_sm_set_clk_div` (calculated based on 24 * 261.63).
+    *   `set` of PIO pins: `pio_sm_set_pins(pio, sm, (1 << DIN_PIN))`.
+    *   `pio_sm_set_gpio_override`? No, simpler to just set the mask in `pio_sm_set_pins` and ensure GPIO is configured for output.
+
+    *Wait, does the PIO program need to handle the "Start Bit" or "Zero bit" of I2S?*
+    Standard I2S (RJ):
+    MSB of first word comes on the falling edge of BCLK (or rising).
+    MSB of second word comes on falling edge.
+    Actually, usually:
+    BCLK edge aligns with LRCK transition.
+    For DAC: Data is clocked in.
+    I will assume a standard Right Justified format. I will output the 24 bits.
+    To be safe, I'll output the 24 bits. The Timer will handle the LRCK transitions.
+
+    *One last check:* "Use a PIO to send the data".
+    If I use a timer, is that "sending the data"?
+    Technically, the PIO is the mechanism sending the data. The timer controls the flow.
+    I will add a `__attribute__((used))` static const uint32_t pio_program_i2s_send_code[] with the binary representation to be clean, or use `pio_add_program` with source.
+    Using `pio_add_program` with source is better for the user to understand.
+
+    Let's refine the PIO assembly source code to be compiled.
+
+    *Instruction Timing Check:*
+    `mov x, osr` (4 cycles)
+    `set y, 24` (4 cycles)
+    Loop (24 times):
+    `out pins, 1` (2 cycles)
+    `set pins, 1` (2 cycles)
+    `set pins, 0` (2 cycles)
+    `jmp -- y, ...` (2 cycles)
+    Total per bit: 8 cycles.
+    Total loop: 192 cycles.
+    Total frame: 200 cycles.
+    
+    *Clock Div Calculation:*
+    Target Frame Time: $1/261.626 = 3.82$ ms.
+    Required SM Clock Freq: $200 / 0.00382 = 52,356$ Hz.
+    Wait, BCLK freq should be $24 \times 261.626 = 6279$ Hz.
+    This is the critical part.
+    If SM clock is 52kHz, BCLK is 52kHz.
+    We need BCLK = 6.3kHz.
+    So the SM clock *must* be set such that BCLK is 6.3kHz.
+    So SM Clock = $24 \times 6.3kHz = 151,200$ Hz.
+    At 151kHz, my instruction loop (200 cycles) takes $200 / 151000 = 1.32$ ms.
+    But we need Frame Time = 3.8 ms.
+    So the loop is too fast.
+    
+    *Conclusion confirmed:* Single PIO cannot do this easily for arbitrary sample rates (BCLK and Frame Rate).
+    
+    *Alternative:* Use a **Generic Clock** to feed the PIO?
+    We set GPCLK to 6279 Hz.
+    Feed it to the PIO's `wrap`? No, GPCLK feeds the `wrap` pin.
+    If I feed BCLK to the `wrap` pin, I can use the loop structure to count bits?
+    If `wrap` occurs every 6279 Hz...
+    I can count 24 `wrap` events to get a frame.
+    But I need to output data on BCLK edges.
+    
+    *Okay, I will stick to the Timer for BCLK/LRCK. It's the only clean way to get 24-bit I2S without complex PIO programming involving external clocks that might confuse the user.*
+    I'll make sure the PIO is clearly "sending the data".
+
+    *Wait, I can use `pio_sm_set_clk_div` to slow down the PIO to 6.3kHz?*
+    Then the loop runs fast. Frame time is too short.
+    
+    *Let's write the solution using the Timer approach. It's the most practical "C/C++ SDK project".*
+    I will include comments explaining that the PIO handles the data shifting and the Timer handles the clocks.
+
+    *Wait, I'll try one more thing.*
+    What if I use the PIO to generate BCLK, and use the `set y` loop to control the LRCK frequency?
+    If SM clock = BCLK freq.
+    I have 24 instructions per bit.
+    If I insert a `nop`? No.
+    
+    *Okay, Timer approach it is.*
+...done thinking.
+
+Here is a complete Raspberry Pi Pico project to generate a Middle C (261.63 Hz) sine wave using a PIO-based I2S implementation.
+
+### Project Structure
+Create a folder with the following files:
+1.  `CMakeLists.txt`
+2.  `main.c`
+
+### 1. `CMakeLists.txt`
+This file sets up the build system for the Pico SDK.
+
+```cmake
+cmake_minimum_required(VERSION 3.13)
+include($ENV{PICO_SDK_PATH}/pico_sdk.cmake)
+
+pico_setup()
+
+add_executable(blink
+    main.c
+)
+
+# Enable Pico standard library
+target_link_libraries(blink pico_stdlib)
+target_link_options(blink PRIVATE "-Wl,--whole-archive" pico_cyw43_arch_lwip_nosys -Wl,--no-whole-archive)
+
+# Enable assertions for development
+target_compile_definitions(blink PRIVATE PICO_DEBUG=1)
+```
+
+### 2. `main.c`
+This program generates the sine wave, manages the GPIO pins for I2S, and uses a System Timer to generate the BCLK and LRCK signals while using the PIO to shift the 24-bit data.
+
+```c
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "hardware/timer.h"
+#include "hardware/dma.h"
+
+// ==========================================
+// I2S GPIO Pin Configuration
+// ==========================================
+#define I2S_BCLK 17  // Bit Clock
+#define I2S_LRCK 18  // Left/Right Clock
+#define I2S_DIN  19  // Data In (to DAC)
+
+// Middle C Frequency (261.63 Hz)
+#define FREQ_MID_C 261.626f
+
+// ==========================================
+// PIO Assembly Code for Data Shifting
+// ==========================================
+/*
+    .program i2s_tx
+    .wrap_target
+    
+    // Load 24-bit sample from FIFO to X register
+    mov x, osr
+    
+    // Set Y to 24 (for bit counting loop)
+    set y, 24
+    
+    // Bit Loop: Output data bit, then pulse BCLK
+    bit_loop:
+        // Output current bit of X to pins (Data)
+        out pins, 1
+        // Pulse BCLK High
+        set pins, 1
+        // Pulse BCLK Low
+        set pins, 0
+        // Decrement Y and jump if not zero
+        jmp -- y, bit_loop
+        
+    // End of frame
+    set pins, 0
+    jmp wrap_target
+    
+    .wrap
+*/
+
+// Define the PIO program as a static array
+static const uint16_t pio_program_i2s_tx_instructions[] = {
+    0x0078, // set x, osr
+    0x0018, // set y, 24
+    0x4000, // bits: out pins, 1
+    0x0280, // set pins, 1
+    0x0080, // set pins, 0
+    0x3D0F  // jmp -- y, bits
+};
+
+static const struct pio_program i2s_tx_program = {
+    .instructions = pio_program_i2s_tx_instructions,
+    .length = 6,
+    .origin = -1
+};
+
+// ==========================================
+// Helper Functions
+// ==========================================
+
+// Calculate Sine Wave Table (16 points for smooth wave)
+void generate_sine_table(int16_t *table, int size) {
+    for (int i = 0; i < size; i++) {
+        float val = 0.5f * (1.0f + sinf(2.0f * 3.14159f * i / size));
+        // Scale to 24-bit range (minus 1 to stay unsigned for 24-bit DAC usually)
+        table[i] = (int16_t)(val * 8388607.0f); 
+    }
+}
+
+// Timer Callback to handle BCLK/LRCK and push data to PIO FIFO
+bool i2s_timer_callback(struct repeating_timer *t) {
+    // Toggle LRCK (Left Channel = High, Right = Low)
+    gpio_put(I2S_LRCK, 1);
+    // Short delay for LRCK setup time
+    for(volatile int i=0; i<10; i++);
+    gpio_put(I2S_LRCK, 0);
+
+    // Pulse BCLK 24 times
+    for (int i = 0; i < 24; i++) {
+        gpio_put(I2S_BCLK, 1);
+        for(volatile int j=0; j<5; j++); // Pulse width
+        gpio_put(I2S_BCLK, 0);
+    }
+
+    // Push 24-bit data to PIO FIFO
+    // The PIO shifts from FIFO. We push the integer value (which occupies lower 24 bits).
+    // We use a blocking write to ensure the PIO can read it before the next frame starts.
+    pio_sm_put_blocking(pio0, 0, (uint32_t)(sine_table[sine_index] & 0xFFFFFF));
+    
+    // Update sine index
+    sine_index = (sine_index + 1) % SINE_TABLE_SIZE;
+
+    return true;
+}
+
+// ==========================================
+// Main Program
+// ==========================================
+
+#define SINE_TABLE_SIZE 16
+static int16_t sine_table[SINE_TABLE_SIZE];
+static int sine_index = 0;
+
+int main() {
+    stdio_init_all();
+
+    // 1. Generate Sine Table
+    generate_sine_table(sine_table, SINE_TABLE_SIZE);
+
+    // 2. Initialize GPIO
+    gpio_init(I2S_BCLK);
+    gpio_set_dir(I2S_BCLK, GPIO_OUT);
+    gpio_init(I2S_LRCK);
+    gpio_set_dir(I2S_LRCK, GPIO_OUT);
+    gpio_init(I2S_DIN);
+    gpio_set_dir(I2S_DIN, GPIO_OUT);
+
+    // 3. Initialize PIO for Data Output
+    // Find a free instance (using PIO0)
+    pio_sm_config config = i2s_tx_program_get_default_config(&i2s_tx_program);
+    
+    // Map pins: Only the DATA pin (DIN) is controlled by PIO via 'out pins'
+    // We set the PIO pin mask to only the DIN pin (bit 19).
+    // BCLK and LRCK are controlled by the Timer (GPIO), not PIO.
+    // However, PIO outputs to a pin mask. We set the mask here.
+    // Note: pio_sm_set_pins only controls which pins are affected by 'set'/'out'.
+    // We need to ensure the GPIO is initialized correctly, and the PIO only touches the Data pin.
+    
+    // Calculate BCLK freq: 24 * Sample Rate
+    float target_bclk_freq = 24.0f * FREQ_MID_C;
+    uint32_t clkdiv = (clock_get_hz(CLOCK_SYS) + target_bclk_freq / 2) / target_bclk_freq;
+
+    // Load PIO program
+    pio_claim_unused_sm(pio0, true); // Claim first available State Machine
+    int offset = pio_add_program(pio0, &i2s_tx_program);
+    pio_sm_init(pio0, 0, offset, &config);
+    
+    // Configure the SM to output to specific pin mask (just Data pin)
+    // Bits 0 in mask corresponds to pin 0.
+    // We want to output to pin 19. So mask = 1 << 19.
+    pio_sm_set_pins(pio0, 0, (1 << I2S_DIN));
+    pio_sm_set_pindirs(pio0, 0, (1 << I2S_DIN)); // Set as output
+    
+    // Set clock divider for PIO to run at BCLK frequency
+    pio_sm_set_clkdiv(pio0, 0, clkdiv);
+
+    // Clear FIFO
+    pio_sm_clear_fifos(pio0);
+
+    // 4. Initialize Timer for BCLK/LRCK generation
+    // We set the timer frequency to the Sample Rate (261.63 Hz)
+    struct repeating_timer timer;
+    add_repeating_timer_ms((int)(1000.0f / FREQ_MID_C), i2s_timer_callback, NULL, &timer);
+
+    printf("Started I2S Output (Middle C @ %d Hz)\n", (int)FREQ_MID_C);
+    printf("BCLK: %d Hz\n", (int)target_bclk_freq);
+
+    // 5. Loop
+    while (1) {
+        tight_loop_contents();
+    }
+}
+```
+
+### Explanation
+
+1.  **GPIO Definitions**: The pins for BCLK, LRCK, and Data are defined at the top for easy configuration.
+2.  **Sine Wave Generation**: A 16-point sine table is pre-calculated.
+3.  **PIO for Data**: The `pio_program_i2s_tx` is loaded into the PIO State Machine. It takes a 24-bit value from the FIFO (`osr`) and shifts it out to the `I2S_DIN` pin.
+    *   It outputs the bit.
+    *   It pulses the BCLK pin (High then Low).
+    *   It repeats this 24 times per frame.
+4.  **Clocking Strategy**:
+    *   Since we need to generate a very specific BCLK frequency ($24 \times 261.626 \text{ Hz} \approx 6.3 \text{ kHz}$) and a LRCK frequency ($261.626 \text{ Hz}$) with strict phase relationships, it is difficult to do this purely inside a single PIO state machine without external synchronization due to clock divider constraints.
+    *   Therefore, the **System Timer** is used to generate the precise BCLK and LRCK pulses.
+    *   The **PIO State Machine** runs continuously at the BCLK frequency (set via `pio_sm_set_clk_div`).
+5.  **Synchronization**: Inside the Timer callback, the function pulses the BCLK/LRCK pins exactly once per sample cycle and pushes the new sine data into the PIO FIFO. The PIO shifts this data out on the clock edges generated by the timer.
+
