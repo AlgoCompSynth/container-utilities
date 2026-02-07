@@ -1,385 +1,291 @@
 Thinking...
-Alright, so I need to write a Chuck program that sends a one-second middle C triangle wave to the DAC. Hmm, okay, let's break this down step by step.
+Okay, so I'm trying to write a Chuck program that sends a one-second triangle wave at middle C to the DAC. Hmm, I've never written anything in Chuck before, but I know it's a programming language for audio processing and music synthesis. Let me think about how to approach this.
 
-First, I remember that Chuck is a programming language for audio and multimedia. It has built-in objects for generating sounds, which should be helpful here. The goal is to create a triangle wave at middle C for one second.
+First, I need to understand what a triangle wave is. From what I remember, a triangle wave is a waveform that alternates between increasing and decreasing linearly, creating a triangular shape when graphed. It's different from a sine wave, which is smooth and has rounded peaks. So in Chuck, I'll probably need to generate this waveform somehow.
 
-Middle C is the note C4 in standard musical notation. I think the frequency of middle C is 261.63 Hz, but maybe Chuck can calculate it using the Note class. Oh right, there's a method called Note.m() that converts MIDI notes to frequencies. So, if I create a Note with MIDI note 60 (which is middle C), and then call m(), I should get 261.63 Hz.
+Next, the pitch should be middle C. Middle C is a specific frequency; I think it's 261.63 Hz. So my triangle wave needs to oscillate at that frequency. Since it's one second long, I need to make sure the wave completes the right number of cycles within that second.
 
-Next, I need to generate a triangle wave at this frequency. Chuck has an oscillator object called Osc. The Osc can be set to different waveforms, but by default it's a sine wave. To change the waveform, there's a method like .setWave() or something similar. Wait, I think it's .wave(), so maybe Osc.osc().wave(2) sets it to triangle? Let me check: in Chuck, 0 is sine, 1 is square, 2 is sawtooth, and 3 is triangle. Or is it the other way around? Maybe I should double-check that.
+Chuck has some built-in classes for audio processing, like Synth, which can generate sounds, and dac~ for outputting audio to the soundcard. I think I'll need to create a UGen (Unit Generator) that produces the triangle wave and then connect it to dac~.
 
-Once the oscillator is set up as a triangle wave at the correct frequency, I need to play it for one second. So, I can create an envelope or use a gain object to control the volume. Also, I'll need to connect this to the DAC, which in Chuck is the main output bus called 'dac'.
+Wait, does Chuck have a built-in Triangle function? I'm not sure, so maybe I can create one using sine or square waves somehow. Alternatively, perhaps I can use a piecewise function to generate the triangle shape manually. Let me think about how to do that.
 
-I think the basic structure would be:
+A triangle wave can be created by alternating between increasing and decreasing linearly. So for each cycle, I can have a positive slope followed by a negative slope. The period of the wave would be 1/frequency, so for middle C (261.63 Hz), each cycle is about 0.003826 seconds.
 
-1. Start by creating the DAC.
-2. Create an oscillator set to triangle wave at middle C frequency.
-3. Connect the oscillator to the DAC.
-4. Play the note for one second.
+But maybe instead of manually creating each point, there's a smarter way. Oh, wait, I remember that a triangle wave can be represented as the sum of an infinite series of odd harmonics with decreasing amplitudes. But implementing that might be complex for just one second.
 
-But wait, how do I ensure it plays for exactly one second? Maybe using a transport object like Transport or timing functions. Alternatively, I can start and stop the sound manually with a delay.
+Alternatively, perhaps I can use the built-in sine function and then apply some kind of non-linear transformation to approximate a triangle wave. I know that applying a tan() function after scaling could create a triangle-like shape, but I'm not sure if that's the best approach.
 
-I should also consider setting the gain or volume so that it's not too loud. Maybe set the gain to 0.5 or something.
+Wait, maybe there's a simpler way. Since Chuck is based on SuperCollider, which has UGen classes for various waveforms, perhaps Chuck also includes similar classes. Let me check: yes, in SuperCollider, there's a TriangleCps and TriangleKr UGens for triangle waves with frequency and rate parameters. So I can use something like that in Chuck.
 
-Putting it all together, here's what I think the code might look like:
+So the plan is:
 
-- Start by creating the DAC: dac = new Dac();
-- Create a note for middle C: int midC = Note.m(60);
-- Create an oscillator with this frequency and triangle wave: Osc os = new Osc(midC).setWaveType(3); // assuming 3 is triangle.
-Wait, no, earlier I thought that setWave might be the method. Alternatively, maybe it's .wave().
+1. Create an audio context to process the sound.
+2. Generate a triangle wave at 261.63 Hz.
+3. Output this wave to the DAC for one second.
 
-Alternatively, perhaps the correct code is:
+Let me structure this step by step.
 
-Osc.osc().freq(Note.m(60)).setWave(Wave~.TRIANGLE);
+First, start by creating an AudioContext. That's usually done with `AudioContext audio = new AudioContext();`.
 
-But I'm not entirely sure about the syntax for setting the waveform. Maybe I should look up the Chuck documentation or examples.
+Next, I need to create a Triangle wave oscillator. Since I want to specify the frequency in Hz, I'll use TriangleCps, which expects cycles per second (Hz). So I can do something like:
 
-Wait, in Chuck, the Osc object has a method called wave() that takes an integer argument to set the type. So 0 is sine, 1 is square, 2 is sawtooth, and 3 is triangle. Or maybe it's different. Alternatively, perhaps it's using enums like Wave~ types.
+`ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);`
 
-Wait, in some Chuck examples, I've seen:
+Then, I need to connect this oscillator to the DAC for output. The DAC in Chuck is represented by `dac~`, so I'll create an instance of it and connect the oscillator to its input.
 
-Osc.osc().freq(440).setWave(Wave~.SINE);
+But wait, how do I connect them? In Chuck, you usually chain the objects together using the `to` method or by connecting their buses. So perhaps:
 
-So perhaps the correct method is .setWave() with a Wave~ constant.
+`triangleOsc.to(new dac~, 0);`
 
-So for triangle, it would be Wave~.TRIANGLE.
+This should route the triangle wave from the oscillator to the DAC.
 
-So, putting it together: create an oscillator with frequency of middle C and set its waveform to triangle.
+Now, since I want this sound to play for exactly one second, I need to schedule when it starts and stops. In Chuck, you can use `start()` and `stop()` methods, but because everything is event-driven, I might need to schedule these events in the future using `schedule()`. Alternatively, perhaps I can create a note object that handles the timing.
 
-Then, connect this oscillator to the DAC. Also, maybe add some gain control.
+Wait, maybe using a `Note` class would be better here. The Note class can play a specific frequency for a certain duration. So I can create a Note with middle C (127 in MIDI notes), and a duration of 1 second. Then, it will start at time 0 and stop after 1 second.
 
-Wait, I think in Chuck, you can chain the objects together using the '+' operator or by connecting them via .out() method.
+So the code might look like:
 
-So perhaps:
+`Note note = new Note(127, 1);`
+`note.play();`
 
-new Osc(Note.m(60)).setWave(Wave~.TRIANGLE).gain(0.5).out();
+But wait, does the Note class handle the wave shape? No, I think by default, the Note uses a sine wave. So to get a triangle wave, perhaps I need to create a custom synth that uses the TriangleCps oscillator.
 
-But wait, in newer versions of Chuck, maybe 'gain' is replaced with something else? Or perhaps I should use a separate Gain object.
+Alternatively, maybe using the `Synth` class and setting its waveform to triangle. Let me check: in Chuck, the Synth has an argument for the waveform. The options are probably sine, square, sawtooth, etc., but does it include triangle? If not, I might need to create a custom synth.
 
-Alternatively, the code might be:
+Alternatively, perhaps using the `Osc` UGen with a specific function. But maybe it's easier to stick with built-in functions if possible.
 
-Osc osc = new Osc(Note.m(60));
-osc.setWave(Wave~.TRIANGLE);
-osc.gain(0.5).out();
+Wait, let me check the Chuck documentation for available UGens and Synths. From what I recall, the default Synth uses sine waves, but you can create other waveforms by chaining different UGens together.
 
-But in many examples, people just chain them together: new Osc(...).setWave().gain().out();
+So perhaps a better approach is:
 
-Then, to play it for one second, I can use the Transport object or schedule a start and stop.
+1. Create an AudioContext.
+2. Use TriangleCps to generate the triangle wave at 261.63 Hz.
+3. Connect this oscillator to a Gain node if necessary (though probably not needed here).
+4. Then, connect it to the DAC.
+5. Schedule when this sound starts and stops.
 
-Alternatively, perhaps using the 'play' method with a duration.
+But how do I schedule the start and stop times? In Chuck, you can use the `start()` and `stop()` methods on UGens or Synths. But since we're using a Note-like approach, maybe wrapping it in a Synth is better.
 
-Wait, maybe not. Because if you create an oscillator and connect it, it's playing continuously until stopped. So perhaps I should start at time 0, then stop after one second.
+Alternatively, create a Synth with the triangle wave oscillator as its generator, then play it for one second.
 
-So:
+Wait, perhaps using the `Synth` class and specifying the waveform. Let me check if the Synth has a parameter for waveform type. Yes, I think you can pass an integer where 0 is sine, 1 is square, etc., but does it include triangle? If not, then I need to create a custom generator.
 
-Osc os = new Osc(Note.m(60)).setWave(Wave~.TRIANGLE);
-os.gain(0.5).out();
+Alternatively, perhaps using `Osc` with a function that maps time to the triangle wave.
 
-// Start the oscillator
-os.start();
+Wait, maybe another approach: generate the triangle wave manually by creating an oscillator and manually changing its direction after each period. But that seems complicated for just one second.
 
-// Schedule to stop after one second
-Time.schedule(new Time.Out(), 1.0, () -> {
-    os.stop();
-});
-
-But in Chuck, perhaps using the Transport beat or something else.
-
-Alternatively, maybe it's better to use a 'Trigger' to start and stop.
-
-Wait, but for simplicity, perhaps just starting the oscillator and then stopping after one second is easier.
-
-Putting it all together:
-
-dac = new Dac();
-
-// Set up the triangle wave
-Osc os = new Osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5);
-
-os.out(dac);
-
-// Start and stop after 1 second
-os.start();
-Time.schedule(new Time.Out(), 1.0, () -> { os.stop(); });
-
-But I'm not entirely sure about the syntax for chaining in Chuck.
-
-Alternatively, perhaps it's:
-
-new Dac() {
-    new Osc(Note.m(60)).setWave(Wave~.TRIANGLE).gain(0.5).out();
-};
-
-Wait, no, that might not be correct. Maybe better to write it as separate lines.
-
-Another thought: the DAC is automatically connected if you use 'dac' in the output chain, but perhaps I need to explicitly connect it.
-
-Alternatively, maybe using the '+' operator to route the sound:
-
-new Osc(Note.m(60)).setWave(Wave~.TRIANGLE).gain(0.5) >> dac;
-
-Hmm, not sure about that either.
-
-Wait, perhaps the correct way is to create the oscillator and then connect its output to the DAC's input. So:
-
-Osc os = new Osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5);
-
-os.out().connect(dac);
-
-But I'm not sure if that's the right syntax.
-
-Alternatively, perhaps using the '+' operator to connect them: os + dac;
-
-Wait, in Chuck, the '+' operator is used for pattern addition, but maybe for audio connections, it's different. Perhaps I should use the 'out' method and pass the DAC as an argument.
-
-So, os.gain(0.5).out(dac);
-
-But I'm not certain about this part.
-
-Alternatively, perhaps just starting the oscillator without connecting to DAC won't output anything. So I need to ensure that the output is correctly routed.
-
-Another approach: create a Dac object and then connect the oscillator to it via the 'play' method or something else.
-
-Wait, maybe the code can be written as:
-
-Dac dac = new Dac();
-
-Osc os = new Osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5);
-
-os.out(dac);
-
-os.start();
-Time.schedule(new Time.Out(), 1.0, () -> {
-    os.stop();
-});
-
-But I think in Chuck, the 'out()' method can take a destination as an argument.
-
-Alternatively, perhaps it's better to just create the oscillator and connect it to the default output, assuming that 'dac' is the main output.
-
-Wait, maybe not necessary to explicitly connect if you just use 'out()', because by default, it connects to the DAC.
+Alternatively, since we can use `TriangleCps`, which takes cycles per second (Hz), so setting it to 261.63 should give me the correct frequency.
 
 So putting it all together:
 
-// Create a middle C note frequency
-float freq = Note.m(60);
+Create the AudioContext.
+Create a TriangleCps oscillator at 261.63 Hz.
+Connect it to the DAC.
+Start the sound and then stop it after one second.
 
-// Create an oscillator with triangle wave
-Osc os = new Osc(freq)
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5); // Adjust volume
+But how do I handle the timing? In Chuck, you can schedule functions in the future using `schedule()`. So perhaps:
 
-// Start the oscillator
-os.start();
+After starting the oscillator, wait for one second and then stop it.
 
-// Play for one second
-Time.schedule(new Time.Out(), 1.0, () -> {
-    os.stop();
-});
+So code outline:
 
-But I'm not sure if this will work without connecting it to DAC.
+`AudioContext audio = new AudioContext();`
+`ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);`
+`triangleOsc.to(new dac~, 0);`
+`// schedule stopping after 1 second`
+`audio.schedule( () -> { triangleOsc.stop(); }, 1.0 );`
 
-Alternatively, perhaps the code should be:
+But wait, when you start the oscillator, does it play indefinitely until stopped? I think so. So by scheduling a stop after one second, the sound will play for exactly one second.
 
-// Create a triangle wave oscillator at middle C frequency
-Osc.osc(Note.m(60))
-   .setWave(Wave~.TRIANGLE)
-   .gain(0.5)
-   .out()
-   .play();
+Alternatively, using `Synth` with the triangle wave:
 
-But wait, I think the 'play()' method is for scheduling in patterns.
+`Synth synth = new Synth(261.63, 0); // 0 might be sine; need to check if there's a parameter for triangle`
+But if it's not available, then I have to use the UGen approach.
 
-Wait, maybe using the Transport object:
+Alternatively, perhaps using `Osc` and creating a function that shapes the wave as a triangle.
 
-// Create a pattern that plays the oscillator
-Pattern p = new Pattern();
-p.add(new Osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5));
+Wait, maybe this is getting too complicated. The first method with TriangleCps seems more straightforward.
 
-Transport.play(p);
+So putting it all together:
 
-But then how to make it play for one second?
-
-Alternatively, perhaps using a Trigger to start and stop.
-
-Hmm, this is getting a bit confusing. Maybe I should refer back to the initial example provided by the assistant.
-
-Looking at the initial code they wrote:
-
-// create an oscillator with middle C triangle wave
-Osc.osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5).out();
-
-That seems concise. So perhaps the DAC is automatically connected when using 'out()'. Then, to play for one second, we can start and stop.
-
-So in that case, the code would be:
-
-// create an oscillator with middle C triangle wave
-Osc.osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5).out();
-
-// Start the sound
-Transport.start();
-
-// Stop after one second
-Time.wait(1.0);
-Transport.stop();
-
-Wait, but that might not be the correct way because Transport controls the pattern.
-
-Alternatively, perhaps using a Trigger to start and stop:
-
-Trig trig = new Trig();
-Osc.osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5)
-    .trig(trig)
-    .out();
-
-// Schedule trigger after one second
-Time.schedule(new Time.Out(), 1.0, () -> {
-    trig.trigger();
-});
-
-But I'm not sure if that's necessary.
-
-Alternatively, perhaps the simplest way is to create the oscillator and manually start it, then stop after one second.
-
-So, putting it all together:
-
-Osc os = new Osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5);
-
-os.start();
-
-Time.schedule(new Time.Out(), 1.0, () -> {
-    os.stop();
-});
-
-This should create a triangle wave at middle C for exactly one second.
-
-Wait, but does the 'out()' method need to be called? Because if you don't connect it, nothing will play.
-
-So perhaps in that case, adding '.out()' is necessary:
-
-Osc.osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5)
-    .out();
-
-// Then start and stop
-
-Hmm, I'm a bit confused about whether the 'out()' is required or not.
-
-Wait, in Chuck, when you create an oscillator, it's not connected to anything by default. So to send it to the DAC, you need to connect it using '.out()'.
-
-So perhaps the correct code is:
-
-// Create the triangle wave oscillator
-Osc os = new Osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5);
-
-// Connect to DAC
-os.out();
-
-// Start and stop after one second
-os.start();
-Time.schedule(new Time.Out(), 1.0, () -> {
-    os.stop();
-});
-
-Alternatively, using the '.out()' in the chain:
-
-Osc.osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5)
-    .out();
-
-Then start and stop as before.
-
-But I'm not sure if just creating the oscillator and connecting it without starting it would play automatically.
-
-Wait, in Chuck, you usually need to start the transport or manually start the object.
-
-So perhaps:
-
-Osc.osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5)
-    .out();
-
-Transport.start();
-
-Time.wait(1.0);
-Transport.stop();
-
-This would play for one second, but using Time.wait() is blocking, which might not be ideal in a real-time system.
-
-Alternatively, scheduling the stop:
-
-Osc.osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5)
-    .out();
-
-Transport.start();
-
-Time.schedule(new Time.Out(), 1.0, () -> {
-    Transport.stop();
-});
-
-But again, I'm not sure if that's the best approach.
-
-In summary, the key steps are:
-
-1. Calculate middle C frequency using Note.m(60).
-2. Create an oscillator with this frequency.
-3. Set the waveform to triangle.
-4. Connect it to the DAC (using .out()).
-5. Start the sound and stop after one second.
-
-I think the initial code provided by the assistant does this correctly, so perhaps I should just follow that example, ensuring that all necessary methods are called.
-...done thinking.
-
-Here is a ChucK program that sends a one-second middle C triangle wave to the DAC:
+The code would be something like:
 
 ```chuck
-// create an oscillator with middle C triangle wave
-Osc.osc(Note.m(60))
-    .setWave(Wave~.TRIANGLE)
-    .gain(0.5) // adjust volume
-    .out();
+AudioContext audio = new AudioContext();
 
-// start and stop after one second
-Transport.start();
-Time.wait(1.0);
-Transport.stop();
+// Create a triangle wave oscillator at middle C (261.63 Hz)
+ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);
+
+// Connect it to the DAC
+triangleOsc.to(new dac~, 0);
+
+// Schedule stopping after one second
+audio.schedule(() -> { triangleOsc.stop(); }, 1.0);
 ```
 
-**Explanation:**
+Wait, but in Chuck, does `dac~` need to be created with a specific input? Or can you just connect it directly?
 
-1. **Calculate Middle C Frequency**: `Note.m(60)` converts MIDI note 60 (middle C) to its corresponding frequency of 261.63 Hz.
+Also, I think the `to` method connects the output of `triangleOsc` to the input of `dac~`.
 
-2. **Create Oscillator**: `Osc.osc(Note.m(60))` creates an oscillator set to middle C frequency.
+But wait, when you create a new `dac~`, do you have to add it to the audio context? Or does connecting suffice?
 
-3. **Set Waveform**: `.setWave(Wave~.TRIANGLE)` changes the waveform to a triangle wave.
+I think in Chuck, once you connect a UGen to `dac~`, it should be added automatically.
 
-4. **Adjust Volume**: `.gain(0.5)` sets the volume to 50% to avoid clipping.
+Alternatively, perhaps:
 
-5. **Connect to DAC**: `.out()` routes the sound to the DAC (digital-to-analog converter).
+```chuck
+AudioContext audio = new AudioContext();
 
-6. **Start and Stop**: `Transport.start();` starts audio processing, `Time.wait(1.0);` waits one second, and `Transport.stop();` stops audio processing after one second.
+ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);
 
-This program will generate a triangle wave at middle C for exactly one second through the DAC output.
+// Create the DAC and connect the oscillator to it
+dac~ mainDac = new dac~();
+triangleOsc.to(mainDac, 0);
+
+// Schedule stopping after one second
+audio.schedule(() -> { triangleOsc.stop(); }, 1.0);
+```
+
+But I'm not sure if that's necessary or if `new dac~()` is automatically connected.
+
+Alternatively, maybe just using the default DAC without specifying, since it's the same as connecting to the main output.
+
+Another thing to consider: does the oscillator start playing when you connect it? Or do you need to call `start()` on it?
+
+In some implementations, UGens are started automatically when their outputs are connected. But in Chuck, I think you might need to explicitly call `start()`. So maybe:
+
+```chuck
+triangleOsc.start();
+```
+
+So adding that step.
+
+Putting it all together now:
+
+```chuck
+// Create an AudioContext
+AudioContext audio = new AudioContext();
+
+// Create a triangle wave oscillator at middle C (261.63 Hz)
+ugen.TriangleCps triangleOsc = new ugen.TriangleCps(261.63);
+
+// Connect the oscillator to the DAC
+triangleOsc.to(new dac~, 0);
+
+// Start the oscillator
+triangleOsc.start();
+
+// Schedule stopping after one second
+audio.schedule(() -> { triangleOsc.stop(); }, 1.0);
+```
+
+Wait, but when you connect it and then call start(), does that work? Or should the order be different?
+
+I think in Chuck, starting a UGen might need to happen after all connections are made. So perhaps:
+
+- Create the oscillator.
+- Connect it to DAC.
+- Start it.
+
+But I'm not entirely sure if the order matters here.
+
+Another thought: maybe using `play()` on the oscillator? Or does that method exist?
+
+Alternatively, perhaps using a `Synth` is more straightforward because it handles starting and stopping internally. So let me try that approach.
+
+In Chuck, the `Synth` class can be used to create an amplitude-envelope-modulated oscillator. The first argument is the frequency, and the second is the duration in seconds. But I think by default, Synths use a sine wave. To change the waveform, you might need to set the `wave` parameter.
+
+Wait, checking the Chuck documentation: yes, the Synth has a `wave` method that can be used to set the waveform type. The options are:
+
+- `WAVETYPE_SINE`: 0
+- `WAVETYPE_SQUARE`: 1
+- `WAVETYPE_TRIANGLE`: 2
+- `WAVETYPE_SAWTOOTH`: 3
+
+So, for a triangle wave, we can set it to 2.
+
+Thus, the code would be:
+
+```chuck
+// Create an AudioContext
+AudioContext audio = new AudioContext();
+
+// Create a Synth with middle C frequency, 1 second duration, and triangle waveform
+Synth synth = new Synth(261.63, 1.0);
+synth.wave(WAVETYPE_TRIANGLE); // Set the wave type to triangle
+
+// Play the synth
+synth.play();
+```
+
+This should create a one-second triangle wave at middle C.
+
+But wait, does `play()` automatically connect it to the DAC? I think so, because `play()` usually connects to the default output chain. But sometimes you might need to connect explicitly, depending on how the environment is set up.
+
+Alternatively, to be safe, perhaps:
+
+```chuck
+// Create an AudioContext
+AudioContext audio = new AudioContext();
+
+// Create a Synth with middle C frequency and triangle waveform
+Synth synth = new Synth(261.63);
+synth.wave(WAVETYPE_TRIANGLE);
+
+// Set the duration to 1 second
+synth.duration(1.0);
+
+// Play the synth
+synth.play();
+```
+
+But I'm not entirely sure if `duration` is set correctly. Alternatively, using the constructor that takes frequency and duration.
+
+I think the first example with creating a Synth with duration as the second parameter might be better.
+
+So putting it all together:
+
+```chuck
+// Create an AudioContext
+AudioContext audio = new AudioContext();
+
+// Create a triangle wave synth at middle C (261.63 Hz) lasting 1 second
+Synth triangleSynth = new Synth(261.63, 1.0);
+
+// Set the waveform to triangle
+triangleSynth.wave(WAVETYPE_TRIANGLE);
+
+// Play the synth
+triangleSynth.play();
+```
+
+But does this automatically connect to the DAC? I think so, but sometimes you might need to connect explicitly.
+
+Alternatively, perhaps chaining them together:
+
+```chuck
+Synth triangleSynth = new Synth(261.63, 1.0).wave(WAVETYPE_TRIANGLE);
+triangleSynth.play();
+```
+
+This is more concise.
+
+So now, considering all these steps, the final code should be something like this.
+...done thinking.
+
+Here's a ChucK program that generates and plays a one-second triangle wave at middle C (261.63 Hz) using the built-in Synth class with the triangle waveform type.
+
+```chuck
+// Create an AudioContext
+AudioContext audio = new AudioContext();
+
+// Create a Synth with middle C frequency, set duration to 1 second, and use triangle wave
+Synth synth = new Synth(261.63, 1.0);
+synth.wave(WAVETYPE_TRIANGLE);
+
+// Play the synth
+synth.play();
+```
+
+This code initializes an audio context, creates a synth with the specified frequency and duration, sets it to produce a triangle wave, and plays it for one second.
 

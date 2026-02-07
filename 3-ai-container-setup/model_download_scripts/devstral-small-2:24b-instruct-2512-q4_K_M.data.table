@@ -1,20 +1,31 @@
-Here's an R program using the `data.table` package to read a CSV file named 'offices.csv' into a data.table called 'offices':
+Here's an R program using the `data.table` package to accomplish the tasks you described:
 
 ```r
 # Load the data.table package
 library(data.table)
 
-# Read the CSV file into a data.table
+# 1. Read offices.csv into a data.table called 'offices'
 offices <- fread("offices.csv")
 
-# Print the first few rows to verify the data was read correctly
-print(head(offices))
+# 2. Read homes.csv into a data.table called 'homes'
+homes <- fread("homes.csv")
+
+# 3. Produce a joined data.table 'result' on column 'employee_id'
+# Only keep rows where employee_id exists in both tables
+result <- offices[homes, on = "employee_id"]
+
+# 4. Write the joined table to 'result.csv'
+fwrite(result, "result.csv")
+
+# Print confirmation message
+cat("Joined data has been written to result.csv\n")
 ```
 
 This program:
-1. Loads the `data.table` package (which includes the `fread` function for fast CSV reading)
-2. Uses `fread()` to read the 'offices.csv' file into a data.table object called 'offices'
-3. Prints the first few rows of the data.table to verify the import was successful
+1. Uses `fread()` to efficiently read both CSV files into data.tables
+2. Performs an inner join (which automatically keeps only matching rows) using the `[` operator with `on` parameter
+3. Writes the result to a CSV file using `fwrite()`
+4. Includes a confirmation message
 
-The `fread()` function is generally faster than base R's `read.csv()` and automatically detects column types, making it ideal for working with data.tables.
+The resulting `result.csv` will contain only employees who appear in both input files, with their work and home addresses.
 

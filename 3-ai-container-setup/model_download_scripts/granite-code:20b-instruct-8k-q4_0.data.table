@@ -1,8 +1,8 @@
-```R
-# Load the required library
+```{r}
 library(data.table)
-
-# Read the csv file into a data.table
 offices <- fread('offices.csv')
+homes <- fread('homes.csv')
+result <- merge(offices, homes, by = "employee_id", all = FALSE)
+fwrite(result, 'result.csv')
 ```
 

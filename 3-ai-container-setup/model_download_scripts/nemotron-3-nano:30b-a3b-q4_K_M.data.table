@@ -1,95 +1,73 @@
 Thinking...
-We need to provide R code using data.table, with reading CSV files (probably fread), merging by employee_id (inner join). Then write result via fwrite. Provide code snippet and explanation.
+We need to produce R code using data.table, reading two CSV files into data.tables with text columns as given (likely they are strings). Then performing inner join on employee_id and write result to csv.
 
-User asks "Please write an R program ..." So we just output the script.
+We can include necessary library, maybe use fread. Mention that by default stringsAsFactors=FALSE but data.table returns character automatically.
 
-Probably include handling of file paths, ensure column names trimmed etc. Use setkey? Not necessary but can.
-
-Provide full script:
-
-library(data.table)
-
-offices <- fread('offices.csv')
-homes <- fread('homes.csv')
-
-result <- merge(offices, homes, by='employee_id', all=FALSE) # inner join
-
-# rename columns or keep as is; they already have same column names.
-# Ensure result has required columns.
-
-fwrite(result, 'result.csv')
-
-Add maybe setDT to ensure data.table objects; but fread returns data.table automatically.
-
-We can also use foverlaps? Not necessary.
-
-Provide final code. Also note that we may need to install data.table and load it.
-
-Thus answer.
+Provide code snippet with setkey etc. Use either join or merge. We'll output final answer.
 ...done thinking.
 
-Below is a self‑contained R script that does exactly what you asked for, using the **data.table** package.  
-Save it (e.g., as `join_offices_homes.R`) and run it from the directory where the two CSV files (`offices.csv` and `homes.csv`) reside.
+**R program – joining *offices.csv* and *homes.csv* with `data.table`**
 
 ```r
-# ------------------------------------------------------------
-# 1. Load data.table  (install if necessary)
-# ------------------------------------------------------------
+## --------------------------------------------------------------
+## 1. Load the data.table package (install if necessary)
+## --------------------------------------------------------------
 if (!requireNamespace("data.table", quietly = TRUE)) {
   install.packages("data.table")
 }
 library(data.table)
 
-# ------------------------------------------------------------
-# 2. Read the two CSV files into data.tables
-# ------------------------------------------------------------
-# fread automatically creates a data.table and guesses column types.
-offices <- fread('offices.csv')
-homes   <- fread('homes.csv')
-
-# (Optional) sanity‑check: make sure we have exactly the columns we expect
-expected_cols_office <- c("employee_id", "work_address")
-expected_cols_home   <- c("employee_id", "home_address")
-
-stopifnot(all(expected_cols_office %in% names(offices)))
-stopifnot(all(expected_cols_home   %in% names(homes)))
-
-# ------------------------------------------------------------
-# 3. Inner‑join on employee_id
-# ------------------------------------------------------------
-# data.table's merge works the same as base R's merge but is faster.
-result <- merge(
-  offices,
-  homes,
-  by = "employee_id",
-  all = FALSE        # FALSE → inner join (only IDs present in both)
+## --------------------------------------------------------------
+## 2. Read the two CSV files
+## --------------------------------------------------------------
+# offices.csv → columns: employee_id , work_address
+offices <- fread(
+  input = "offices.csv",
+  colClasses = c("character", "character")   # force text (no factors)
 )
 
-# After merging we will have three columns:
-#   employee_id, work_address, home_address
-# The order of columns is preserved from the left table followed by the new ones.
+# homes.csv → columns: employee_id , home_address
+homes <- fread(
+  input = "homes.csv",
+  colClasses = c("character", "character")
+)
 
-# ------------------------------------------------------------
-# 4. Write the result to 'result.csv'
-# ------------------------------------------------------------
-fwrite(result, file = "result.csv")
+## --------------------------------------------------------------
+## 3. Make sure the key on which we will join is a character column
+## --------------------------------------------------------------
+setkey(offices, employee_id)   # order by employee_id (character)
+setkey(homes , employee_id)    # same ordering for the second table
+
+## --------------------------------------------------------------
+## 4. Perform an inner join (only rows whose employee_id appears in both files)
+## --------------------------------------------------------------
+result <- offices[homes,        # left‑join on key(s)
+                  .(employee_id,
+                    work_address = i.work_address,   # from 'offices'
+                    home_address = i.home_address]) # from 'homes'
+                 , allow.cartesian = FALSE]       # default for unique keys
+
+# The result also inherits the ordering of the join; reset if you like:
+setkey(result, employee_id)
+
+## --------------------------------------------------------------
+## 5. Write the joined table to CSV (no row‑names, strings as‑is)
+## --------------------------------------------------------------
+fwrite(
+  x = result,
+  file = "result.csv",
+  sep = ",",          # default; keep for clarity
+  quote = TRUE,       # quote fields that may contain commas
+  sep = ","
+)
+
+cat("Joined table written to 'result.csv'\n")
 ```
 
-### What each part does
+### What the code does
 
-| Step | Code snippet | Explanation |
-|------|--------------|-------------|
-| **Load data.table** | `library(data.table)` (or install it) | Provides the fast `fread`, `fwrite`, and merge functions that work directly with *data.tables*. |
-| **Read files** | `offices <- fread('offices.csv')`<br>`homes   <- fread('homes.csv')` | Reads the CSV into two data.table objects. No extra arguments needed; column names are taken verbatim from the header row. |
-| **Validate columns (optional)** | `stopifnot(...)` | Makes sure each file contains the expected text fields before proceeding. This will throw a clear error if something is missing. |
-| **Inner join** | `result <- merge(offices, homes, by = "employee_id", all = FALSE)` | Joins both tables on `employee_id`. Setting `all = FALSE` guarantees that only IDs appearing in **both** files are kept (i.e., a true inner join). The resulting table contains three columns: `employee_id`, `work_address`, `home_address`. |
-| **Write output** | `fwrite(result, file = "result.csv")` | Writes the joined data.table to a CSV file named `result.csv` in the current working directory. By default, `fwrite` uses commas as separators and does not write row names or quotes. |
-
-### Quick checklist before running
-
-1. **Files are in the right place** – Place this script in (or set the working directory to) the folder that contains `offices.csv` and `homes.csv`.
-2. **Column spelling matches exactly** – The CSV headers must be exactly `employee_id`, `work_address`, and `home_address`. If they differ, adjust the variable names accordingly or rename them after reading (e.g., `setnames(offices, c("EmployeeID","WorkAddr"))`).
-3. **R session permissions** – Ensure you have write permission to create `result.csv`.
-
-That’s it! When you run the script, `result.csv` will contain a single row for each employee that appears in *both* source files, with their work and home addresses side‑by‑side.
-
+| Step | Description |
+|------|-------------|
+| **Load** `data.table` – required for fast `fread`/`fwrite`. |
+| **Read CSV** files with `fread()`. The `colClasses = c("character","character")` forces both columns to be read as text (no automatic factor conversion). |
+| **Set keys** on the join column `employee_id` in *both* tables. This enables efficient merges that are

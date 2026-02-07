@@ -20,6 +20,9 @@ do
   echo "checking $model with R"
   /usr/bin/time ollama run $model < prompt.R > $bname.data.table
 
+  echo "checking $model with Pico SDK"
+  /usr/bin/time ollama run $model < prompt.pico-sdk > $bname.pico-sdk
+
 done
 
 echo "*** Finished Test Models ***"

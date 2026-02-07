@@ -1,16 +1,18 @@
- ```
- // Sends a 1 second long triangle wave with a frequency of C4 (261.63 Hz)
-// using a Chuck oscillator and a DAC.
- 
-Dac dac;
-Osc osc;
- 
-dac.init(0); // initialize DAC to use channel 0
-osc.init(0, 261.63); // initialize osc to generate a triangle wave at C4 (261.63 Hz)
+```
+// OneSecondTriangleWave.ck
+// A ChucK program to generate and play a 1 second triangle wave at pitch middle C on a digital audio workstation (DAC).
 
-// send the triangle wave to the DAC for one second
-for (int i = 0; i < 8; i++) {
-    dac.write(osc.next()); // send next sample from osc to DAC
-}
+SinOsc s => dac; // set up a sine oscillator connected to the DAC
+0.5::second => now; // wait for 1 second
+
+// generate a triangle wave with a frequency of 261 Hz (middle C)
+261 => int freq;
+TriOsc t => dac; // set up a triangle oscillator connected to the DAC
+freq => t.freq; // set the frequency of the triangle wave
+
+// start playing the waveform
+t.keyOn(); // turn on the triangle oscillator
+1::second => now; // wait for 1 second before stopping
+t.keyOff(); // turn off the triangle oscillator
 ```
 

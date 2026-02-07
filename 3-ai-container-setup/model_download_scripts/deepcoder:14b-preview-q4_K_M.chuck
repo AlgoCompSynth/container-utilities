@@ -1,1005 +1,772 @@
 <think>
-Okay, so I need to write a Chuck program that sends a one-second middle C triangle wave to the DAC. Hmm, where do I start? I'm not super familiar with Chuck, but I know it's a programming language for audio and music. Let me think about what I know.
+Okay, so I need to write a Chuck program that sends a one-second triangle wave at middle C to the DAC. Hmm, where do I start? I'm not super familiar with Chuck, but I know it's for audio programming.
 
-First, I remember that in Chuck, you can create objects, and there are specific classes for dealing with audio. The DAC is the digital-to-analog converter, which means I need to route my sound through it. So maybe I'll use adac~ object or something similar. Oh wait, I think it's just dac~ in Chuck.
+First, I should figure out what a triangle wave is. From what I remember, a triangle wave is a signal that goes up and down in a linear fashion, creating a triangular shape. It's different from a sine wave which is smooth and curved. So, generating a triangle wave would involve creating an oscillator with this specific waveform.
 
-Next, the note: middle C. What's the frequency of middle C? I recall it's 261.63 Hz. That should be straightforward to set as a variable.
+Next, the pitch should be middle C. Middle C is the note C4 if I'm not mistaken, which corresponds to a frequency of 261.63 Hz. I think in Chuck, you can set the frequency of an oscillator using the `freq` method or maybe through the gain node.
 
-Now, generating a triangle wave. How do I create a triangle wave in Chuck? I know there are oscillators like sin~, cos~, but for a triangle, maybe I can use the triangle~ oscillator. Or perhaps there's another way if that doesn't exist. Wait, I think the osc~ object allows you to set different waveforms. Let me check... Oh right, I can use the select~ object to choose between waveforms. So using OSC_TRIG for a triangle waveform.
+I remember that in Chuck, you have to start a real-time thread with `start()`. Then, you can create oscillators and route them to the DAC. The DAC is just the audio output, so I need to send my triangle wave there.
 
-Wait, no, maybe it's OSC_SINE, OSC_SQUARE, etc. Maybe I need to look that up or think about how it's done. Alternatively, I could create a triangle wave manually by shaping the signal with envelopes or using interpolation, but that might be more complicated than necessary.
+Wait, how do I create an oscillator? I think it's something like `A440` for a sine wave, but maybe there's another way. Oh right, you can use `Oscillator()`. So I'll probably create an oscillator and set its frequency to middle C.
 
-I think the correct way is to use an oscillator and set its waveform type. So perhaps something like Osci.setWave(WaveType) where WaveType has options for sine, square, sawtooth, etc. But in Chuck, I believe it's done with the select~ object connected to the osc~. Or maybe there's a specific method to set the waveform.
+But wait, the question specifies a triangle wave. Does Chuck have built-in functions for different waveforms? I don't recall exactly, so maybe I need to generate it manually. That makes sense because some simpler oscillators might not have waveform options. So how do I create a triangle wave?
 
-Wait, no. Let me think: In Chuck, the oscillators have different waveforms as static fields. For example, Osci.SINE, Osci.SQUARE, etc. So I can create an oscillator and specify the waveform type when creating it or using setWave().
+A triangle wave alternates between increasing and decreasing linearly. The amplitude can be calculated using something like `abs(2 * (x / period) - 1)` where x is time, and the period is the inverse of frequency. That should give me a triangular shape that goes from -1 to 1.
 
-So perhaps the code would be something like:
+So putting it all together: I'll start by creating an oscillator with the correct frequency, but instead of using sine, I'll create my own waveform function based on time. Then, connect this to the DAC for output.
 
-Oscillator o = Oscillator(261.63, 0).setWave(Oscillator.WAVE_SAWTOOTH);
+Wait, maybe there's an easier way without writing a custom function. Let me think. Oh right, in Chuck, you can use `SinOsc` for a sine wave and then shape it into a triangle using some processing, but that might be more complicated than just creating a custom amplitude calculation.
 
-Wait, but I need a triangle wave. Does Chuck support that? Or do I have to use another method?
+Alternatively, I could create an oscillator with a square wave and then filter it to approximate a triangle wave, but that's also more steps. Maybe the simplest way is to calculate the amplitude over time manually.
 
-Alternatively, maybe using an envelope to create the triangle shape by switching between increasing and decreasing lines.
+So here's what I'll do:
 
-But that might be more complicated. Maybe there's a built-in way. Let me think again: perhaps using the Triangle~ object or something similar. Wait, no, I don't recall a Triangle~ in Chuck. So perhaps the best way is to use an oscillator with a triangle waveform if available, else find another method.
+1. Start a real-time thread with `start()`.
+2. Create an `Oscillator` or use `SinOsc` and then adjust its waveform by scaling the sine wave into a triangle.
+Wait, no. Maybe using a `SinOsc` isn't the right approach if I need to create a triangle wave. Perhaps it's better to calculate the amplitude myself.
 
-Wait, maybe I can use the select~ object after the oscillator. For example, connect the oscillator to a select~, and then set the selection to create a triangle wave. But I'm not sure about that.
+Let me structure this step-by-step:
 
-Alternatively, perhaps using a phasor to generate a linear ramp and then fold it into a triangle. That might be more involved but doable.
+- The program should run in real-time, so I'll use `start()`.
+- Then, define the frequency as middle C: 261.63 Hz.
+- Create an `Oscillator` or perhaps a `SinOsc`, but then modulate its amplitude based on time to create the triangle shape.
 
-Wait, maybe for simplicity, using an oscillator with a sawtooth and then applying some math to convert it to a triangle wave.
+Wait, no. Actually, maybe using `SinOsc` isn't suitable for a triangle wave. I think it's better to generate the waveform by calculating the linear increase and decrease over each period.
 
-But perhaps the simplest way is to use the built-in waveform types if available. Let me check: in Chuck, the Oscillator class has different waveforms like WAVE_SINE, WAVE_SQUARE, etc., but I'm not sure about triangle. Maybe it's not directly supported. If that's the case, then perhaps I need to create a custom triangle wave.
+So, inside the real-time thread, I'll have a loop that runs at audio rate (using `while(true)` with `noesis()` to avoid blocking). For each sample, calculate the time since the start of the note, determine where in the triangle wave we are, compute the amplitude, and then output it through the DAC.
 
-Wait, another approach is to use an amplitude modulation to approximate a triangle wave. Or maybe using a piecewise function in Chuck to generate the desired waveform over time.
+Wait, but loops in Chuck can be tricky. Maybe using a `SinOsc` is easier if possible, but I'm not sure if it allows for changing the waveform. Alternatively, perhaps there's a way to create a custom oscillator with a triangle wave function.
 
-Alternatively, perhaps using the envelope~ object with specific attack and release times to create a triangular shape. But that might not give me a continuous wave, more like single cycles.
+Alternatively, maybe I can use the built-in `TriangleOscillator`, but I don't recall Chuck having that. So perhaps I need to implement it manually.
 
-Wait, another idea: use two lines, one going up and one going down, connected by a conditional based on the current time or phase.
+So here's what I'll do:
 
-But maybe I'm overcomplicating it. Let's see, in Chuck, can I create an oscillator with a triangle waveform? Or is there a separate class for that?
+- Calculate the period as 1 / frequency (since frequency is in Hz).
+- For each sample, calculate the time since the start (t) and determine where t falls within the current period.
+- The triangle wave can be calculated by determining whether we're on the rising or falling edge of the wave and computing the corresponding linear value.
 
-Wait, perhaps using the LineStream~ object to generate a linear ramp and then fold it into a triangle by connecting it through a comparator or something.
+Wait, but perhaps a simpler way is to use `Math.sin` but then scale it appropriately. Wait no, that would give me a sine wave. To get a triangle wave from a sine wave isn't straightforward because they have different harmonic structures.
 
-Alternatively, maybe I can use the built-in functions to create a function that generates a triangle wave as an array and then play it back. But that might be more for samples rather than live generation.
+So maybe I should just calculate the triangle wave manually. The formula for a triangle wave can be expressed as:
 
-Wait, perhaps using the Cycle~ object with a custom waveform table. So creating a Table~ with a precomputed triangle wave and then using Cycle~ to play through it at the desired frequency.
+amplitude = (2 / period) * t - 1, but then you need to reset every period and alternate between increasing and decreasing.
 
-But for a one-second middle C, I need a continuous signal, not a sampled one. Hmm.
+Wait no, more accurately, the amplitude can be calculated using a piecewise function where it increases until the midpoint of the period and then decreases. Alternatively, you can use modulo arithmetic to determine the position within each cycle and calculate the value accordingly.
 
-Alternatively, maybe I can calculate the amplitude over time as a function of a triangle wave within Chuck.
+So perhaps something like:
 
-Wait, perhaps in the main function, I can use a loop that runs over the duration (one second) and calculates each sample's value based on the triangle function. But Chuck is event-driven, so loops might not be the best approach for real-time audio processing.
+float amp = ((time % (2 / freq)) < 1 / freq) ? (2 * (time % (1 / freq))) : (2 * (1/freq - (time % (1 / freq)))) - 1;
 
-Alternatively, usingugen objects to create the signal without relying on loops.
+Wait, that might not be correct. Let me think.
 
-Wait, perhaps using an oscillator with a sawtooth wave and then applying a comparator or some math to convert it into a triangle. For example, a sawtooth can be converted to a triangle by subtracting from 1 and scaling appropriately, but I'm not sure about that.
+The period is T = 1 / f. For a triangle wave, each cycle goes up for T/2 and down for T/2. So the amplitude can be calculated as:
 
-Wait, another idea: the triangle wave can be represented as two linear segments (rising and falling) over each period. So perhaps using an envelope with attack and release times set to half the period of the waveform.
-
-The period of middle C is 1/261.63 seconds, approximately 0.0038 seconds. So half-period is about 0.0019 seconds. If I can create an envelope that rises for 0.0019 seconds and then falls for another 0.0019 seconds, repeating this.
-
-But in Chuck, creating such envelopes might be a bit tricky because they are not inherently periodic unless you use something like Cycle~ or Table~ with looping.
-
-Alternatively, perhaps using the built-in Triangle~ object if it exists, but I don't think so.
-
-Wait, maybe I can create a custom oscillator function. In Chuck, you can create functions that generate audio by returning an amplitude over time. But this might not be efficient for real-time processing, as Chuck relies on signal processing graphs rather than function callbacks.
-
-Alternatively, perhaps using the LineStream~ object to generate the triangle wave by creating a stream that alternates between increasing and decreasing values at each period.
-
-Wait, here's another approach: use an oscillator with a sine wave and then apply a clipper or some non-linear distortion to turn it into a triangle. But I'm not sure if that would work well.
-
-Alternatively, perhaps the easiest way is to accept that Chuck might not have a built-in triangle wave oscillator and instead use a sawtooth and shape it. Wait, no, the question specifically asks for a triangle wave, so I need to ensure that's what I generate.
-
-Wait, maybe using the select~ object with an index that cycles between two states: one where the signal is increasing and another where it's decreasing. But this might require some complex routing.
-
-Alternatively, perhaps using an amplitude modulation where the carrier is a square wave and the modulator is a low-frequency sine wave to create a triangle effect. Hmm, not sure about that.
-
-Wait, maybe I can use the built-in phasor object to generate a ramp from 0 to 1 over half a period, then back down, repeating this. So using Phasor~ with certain frequencies and connecting it through some math to fold it into a triangle.
-
-Let me outline the steps:
-
-1. Create an oscillator at middle C frequency (261.63 Hz).
-
-But wait, no: I don't need an oscillator for the carrier; instead, I can use a phasor that generates a linear ramp from -1 to 1 over each period, creating a triangle wave.
-
-Wait, perhaps using two line streams: one going up and another going down, and switching between them every half-period.
-
-But how do I manage the switching in real-time?
-
-Alternatively, perhaps using a single LineStream~ object with a slope that alternates direction every half-period. But this would require knowing when to change the slope, which might involve scheduling events or using a conditional based on time.
-
-Wait, maybe I can calculate the phase and use it to determine whether to be in the rising or falling part of the triangle wave.
-
-The phase goes from 0 to 1 over each period (T). So for a triangle wave, the amplitude as a function of phase is (2 * phase) when phase < 0.5, and (2*(1-phase)) otherwise.
-
-Wait, no: a triangle wave can be represented as |(2/T)*(t mod T) - 1| or something like that. Maybe it's easier to think in terms of the waveform's shape over time.
-
-So for each sample at time t, the amplitude would be (something based on t modulo period). So perhaps I can calculate this within a function and return it as an audio signal.
-
-But again, Chuck is event-driven, so functions might not handle real-time processing efficiently. It's better to use ugen objects connected in a graph.
-
-Wait, maybe using a combination of phasor and math operations. For example:
-
-- Use Phasor~ to generate a time index.
-- Multiply by 2 * pi * frequency to get the angle.
-- Then take the sine of that, but wait, that would give me a sine wave. But I need a triangle.
-
-Wait, no: perhaps using a different approach. The triangle wave can be generated by taking the absolute value of a sawtooth wave minus 0.5 and scaling it appropriately.
-
-So if I have a sawtooth wave going from -1 to 1 over each period, then take its absolute value after subtracting 0.5, that might give me a triangle shape.
-
-Wait, perhaps using an oscillator with a sawtooth waveform (Oscillator.WAVE_SAWTOOTH) and then applying some math to it.
-
-But I'm not entirely sure about the exact steps. Maybe it's easier to create a custom function in Chuck that generates the triangle wave over time.
-
-Alternatively, perhaps using the built-in Triangle~ object if such exists, but I don't think so.
-
-Wait, another idea: use an amplitude modulation where you modulate a sine wave with itself to get a series of harmonics, which might resemble a triangle wave. But this is more about creating a square or triangle wave through additive synthesis.
-
-But perhaps that's beyond the scope for now. Maybe I should focus on generating a simple triangle wave using available ugens.
-
-Wait, here's a plan:
-
-1. Create an oscillator at middle C frequency (261.63 Hz).
-
-Wait, no: but if I use an oscillator with a triangle waveform, it would directly give me the desired signal. But does Chuck support that?
-
-Upon checking, I remember that in Pure Data (which Chuck is inspired by), you can set the waveform of the oscillator using the select~ object connected to the output of an index generator.
-
-Wait, perhaps in Chuck, I can use the Oscillator class and set its waveform type. So something like:
-
-Oscillator o = new Oscillator();
-o.setFreq(261.63);
-o.setType(Oscillator.WAVE_TRIANGLE); // if such a type exists
-
-But wait, does the Oscillator class have a WAVE_TRIANGLE option? I'm not sure. Maybe it only has sine, square, sawtooth.
-
-If that's the case, then I might need to generate the triangle wave manually.
-
-Alternatively, perhaps using the built-in Triangle~ object or a function that can create it.
-
-Wait, maybe there's augen named "triangle~". Let me think: in Chuck, you can use functions like sine(), cos(), but for waveforms, you have objects like SinOsc~, CosOsc~, etc. But I don't recall a TriangleOsc~.
-
-So perhaps the best way is to create a triangle wave using an oscillator with a square wave and then applying some shaping, or using a custom function.
-
-Wait, another approach: use two LineStream~ objects, one for the rising part and one for the falling part, connected by a switch that toggles every half-period.
-
-But how do I toggle the switch in real-time? Maybe using an event scheduler to change the state of the selector every 0.5 / frequency seconds.
-
-Hmm, that could work. Let me outline:
-
-- Create a selector (Selector) with two inputs: one for the rising slope and one for the falling slope.
-- Schedule events every half-period to switch the selector between the two inputs.
-- The rising slope would be a LineStream~ starting from -1 to 1 over half the period.
-- The falling slope would be another LineStream~ starting from 1 to -1 over the same duration.
-
-Wait, no: for a triangle wave centered at zero with peaks at +1 and -1, each slope would take half the period. So for middle C (261.63 Hz), the period is about 0.0038 seconds. Half-period is ~0.0019 seconds.
-
-So I can create two LineStream~ objects:
-
-- One that goes from -1 to 1 over 0.0019 seconds (rising).
-- Another that goes from 1 to -1 over the same duration (falling).
-
-Then, connect these to a Selector~, and switch between them every half-period.
-
-But how do I implement this in Chuck? Maybe using a scheduling function to toggle the selector's input every half-period.
-
-Alternatively, perhaps using a Phasor~ object to generate a time index and then use that to control the slope direction.
-
-Wait, maybe I can create a signal that alternates between 0 and 1 every half-period, which would select between the rising and falling LineStream~ objects.
-
-But this might get complicated. Alternatively, perhaps using an If statement within a function to determine whether to output the rising or falling part based on the current phase.
-
-Wait, but functions in Chuck for audio processing are not straightforward; you have to use ugens connected together.
-
-Another idea: create a single LineStream~ that alternates direction every half-period by changing its slope at those intervals.
-
-But how do I change the slope of a LineStream~ in real-time? I don't think LineStream~ allows dynamic changes to its start and end values once it's created. So perhaps creating a new LineStream~ each time the direction changes isn't efficient, but for one second, maybe it's manageable.
-
-Wait, middle C is 261.63 Hz, so in one second, there are 261 cycles. Each cycle has two lines (rising and falling). So that's 522 line segments to generate in one second. That might be feasible by scheduling each LineStream~ with a delay of half-period.
-
-So the steps would be:
-
-1. Calculate the frequency: freq = 261.63;
-2. The period is 1/freq, so half-period is (1/(2*freq));
-3. Create an initial LineStream~ for the rising slope from -1 to 1 over half-period.
-4. Then create another LineStream~ for the falling slope from 1 to -1 over the same duration.
-5. Connect these to a Selector~, starting with the first (rising).
-6. After half-period, switch the selector to the second input (falling).
-7. After one full period, reset the process by creating new LineStream~ instances and repeating.
-
-But how do I schedule this in Chuck? Maybe using the after() function within an event loop.
-
-Wait, perhaps writing a recursive function that schedules itself after each half-period to switch the selector and create new LineStream~ objects as needed.
-
-Alternatively, use a loop with Thread.yield() to avoid blocking, but that might not be efficient or accurate for real-time audio processing.
-
-Another approach: use the built-in scheduling functions in Chuck to schedule events at specific times to switch the selector input.
-
-Wait, perhaps using a transport thread and calculating the exact times when each LineStream~ should start and stop. But this could get quite complex.
-
-Alternatively, maybe using an envelope with attack and release times set to half-period for both the rising and falling parts, but I'm not sure if that would create a continuous triangle wave without gaps or overlaps.
-
-Wait, perhaps using two Envelope~ objects: one for the rising slope and another for the falling. The envelope can be triggered at each period to start the next segment.
-
-But this might require careful synchronization to avoid clicks or discontinuities in the waveform.
-
-Hmm, maybe I'm overcomplicating it. Perhaps there's a simpler way using built-in functions.
-
-Wait, perhaps using the abs() function on a sine wave would create a triangle wave? No, because the absolute value of a sine wave creates a series of peaks but not the linear slopes of a triangle wave. It would actually create a shape that's similar to a square wave with rounded edges, not a perfect triangle.
-
-Wait, no: the absolute value of a sine wave is a waveform that goes from 0 up to the peak and back down symmetrically on both sides, which creates a shape more like a "V" for each cycle. Wait, actually, yes! If I take the absolute value of a sine wave with a certain frequency, it would create a series of V-shaped waves, which is exactly what a triangle wave looks like.
-
-Wait, no: wait, the absolute value of a sine wave would create a waveform that's positive on both sides of each cycle, but it wouldn't have the linear rising and falling slopes; it would have a curved shape. Wait, no: actually, when you take the absolute value of a sine wave, you're reflecting the negative parts to positive, which creates a series of "V" shapes, effectively creating a triangle wave with sharp edges at the zero crossings.
-
-Wait, no: let me think about this. The original sine wave has smooth curves. Taking the absolute value would make all negative parts positive, so each half-cycle becomes a peak. But does that create linear slopes? No, it still retains the curved shape of the sine wave's peaks and troughs, just mirrored.
-
-Wait, no: actually, when you take the absolute value of a sine wave, you're not changing the shape; you're just making the negative parts positive. So the resulting waveform would have a series of "humps" that are symmetric on both sides of each cycle, but they're still sinusoidal in shape, not linear.
-
-Wait, no: wait, if I take the absolute value of a sine wave, the resulting waveform is indeed a triangle wave? No, actually, it's more like a full-wave rectified sine wave, which looks similar to a series of peaks without any linear segments. So that might not give me a proper triangle wave.
-
-Wait, no: perhaps if I use a different approach, like using a sawtooth wave and then applying some math to create the triangle. For example, taking the absolute value of a sawtooth wave minus 0.5 could create a triangle-like shape.
-
-Alternatively, maybe using a combination of sine functions at different frequencies can create a triangle wave through additive synthesis, but that's more complex.
-
-Wait, perhaps I should just look for an existing solution or documentation on how to generate a triangle wave in Chuck.
-
-Upon checking, I find that in Chuck, you can use the TriangleOsc~ class if it exists. But wait, does Chuck have a built-in TriangleOsc~? Or is it only SinOsc~, CosOsc~, etc.?
-
-Wait, perhaps not. Maybe I need to create a custom oscillator.
-
-Alternatively, perhaps using the built-in functions and ugens, I can generate a triangle wave by combining two line segments per cycle.
-
-So, going back to my initial plan:
-
-- Use LineStream~ for each slope.
-- Switch between them every half-period.
-
-I can implement this by creating two LineStream~ objects: one for rising from -1 to 1 over T/2 seconds, and another for falling from 1 to -1 over the same duration. Then, connect these to a Selector~, and switch the input every T/2 seconds.
-
-Here's how I could structure it:
-
-1. Define the frequency: float freq = 261.63;
-2. Calculate the period: float period = 1 / freq;
-3. Half-period is then period / 2.0;
-4. Create a LineStream~ for rising:
-   LineStream line_rise = new LineStream( -1, 1, halfPeriod );
-5. Similarly, create line_fall from 1 to -1 over the same duration.
-6. Connect these to a Selector selector = new Selector();
-7. Initially, connect line_rise to selector inlet 0 and line_fall to inlet 1.
-8. Then, schedule an event after halfPeriod seconds to switch the selector to the falling input.
-9. After another halfPeriod (total period), reset by creating new line_rise and line_fall objects and scheduling the next switch.
-
-Wait, but how do I handle the continuity? Each time I create a new LineStream~, it starts at time 0, so when I connect it after a delay, there might be discontinuities unless I use a transport thread to manage the timing precisely.
-
-Alternatively, perhaps using a single selector and continuously toggling its input as needed.
-
-Wait, but in Chuck, scheduling events with precise timing can be done using the after() function within a Transport thread.
-
-So here's a more concrete plan:
-
-- Create a main transport thread.
-- Within this thread, create an infinite loop that:
-   a. Creates a LineStream~ for rising from -1 to 1 over halfPeriod.
-   b. Connects it to selector[0].
-   c. Schedules the next step (falling) after halfPeriod seconds.
-   d. Then creates a LineStream~ for falling from 1 to -1, connects it to selector[1], and schedules the next rising after another halfPeriod.
-
-Wait, but how do I manage this without overlapping signals? Maybe by using a queue or some synchronization to ensure that each LineStream~ is only active during its respective time slot.
-
-Alternatively, perhaps using a single LineStream~ with changing parameters, but I don't think LineStream~ allows dynamic changes once it's started.
-
-Another idea: use a Trigger to start each new LineStream~ at the correct time. But again, this requires precise timing.
-
-Wait, perhaps using the built-in scheduling functions and creating a recursive function that reschedules itself after each half-period.
-
-Here's a possible implementation:
-
-// Main function
-public static void main(String[] args) {
-    // Create a transport thread
-    new Thread(new Runnable() {
-        public void run() {
-            // Set up the audio format
-            AudioFormat format = new AudioFormat(44100, 16, 2, 2, 16, 0, false);
-            AudioEngine engine = AudioEngine.createEngine(format);
-
-            // Define frequency and period
-            float freq = 261.63f;
-            float period = 1 / freq;
-            float halfPeriod = period / 2.0f;
-
-            // Create selector to switch between rising and falling
-            Selector selector = new Selector();
-
-            // Function to schedule the next segment
-            final Runnable scheduleNext = new Runnable() {
-                public void run() {
-                    // Schedule the next event after halfPeriod
-                    Transport.schedule(this, halfPeriod);
-                }
-            };
-
-            // Start the first rising segment
-            LineStream lineRise = createLineStream(-1, 1, halfPeriod);
-            selector.connect(0, lineRise);
-
-            // Schedule the switch to falling after halfPeriod
-            Transport.schedule(scheduleNext, halfPeriod);
-
-            // Keep the transport running indefinitely
-            while (true) {
-                try {
-                    Thread.sleep(1000); // Wait for events to be scheduled
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
-        }
-    }).start();
+float t = time % T;
+if (t < T/2) {
+    amp = (4 * t)/T - 1; // rising edge
+} else {
+    amp = 1 - (4*(t-T/2))/T; // falling edge
 }
 
-// Helper function to create a LineStream with start, end, and duration
-private static LineStream createLineStream(float start, float end, float duration) {
-    LineStream line = new LineStream();
-    line.setStart(Transport.time(), start);
-    line.setEnd(Transport.time() + duration, end);
-    return line;
-}
+But wait, this would give a wave that goes from -1 to 1. Or does it? Let's see:
 
-Wait, but this might not work as intended because each LineStream is created with absolute times based on Transport.time(), which advances over time. So the next LineStream would correctly start after the previous one ends.
+At t=0: amp=-1?
 
-But I need to ensure that each new LineStream starts at the correct time and connects to the selector in the right order.
+Wait no, perhaps the formula should be adjusted.
 
-Also, I need to connect each new LineStream to the selector's inlet when it's supposed to be active.
+Wait, another way is to create a sawtooth wave and then differentiate it or something. But maybe it's easier to just use a function that alternates between increasing and decreasing.
 
-Wait, perhaps using a Trigger to switch the selector's input. For example:
+Alternatively, using the absolute value of a sine function might not work because it creates a different waveform.
 
-- Create a Trigger that sends a message to switch the selector after halfPeriod.
-- The selector has two inlets: 0 for rising and 1 for falling.
-- So initially, connect lineRise to inlet 0.
-- After halfPeriod, send a message to set the selector's active inlet to 1 (falling).
-- Then create a new lineFall LineStream starting at the correct time.
-- Wait, no: perhaps I should create both lines upfront and switch between them.
+I think the correct formula for a triangle wave can be written as:
 
-Wait, maybe it's better to have two LineStream objects, one for rising and one for falling, each with their own start and end times, connected to the selector in sequence.
+amp = (2 * t / T) - 1 when t is in [0, T/2], and then amp = -(2*(t - T/2)/T) + 1 when t is in [T/2, T].
 
-But I'm not sure if this will work without overlapping or gaps.
+Wait no, that would give a wave from -1 to 1. Wait, let me calculate:
 
-Alternatively, perhaps using a single selector that alternates between the two inputs every halfPeriod.
+When t=0: (2*0)/T -1 = -1.
 
-Wait, here's another approach: create an array of LineStream objects for both rising and falling segments, each with their respective start and end values and times. Then connect them to the selector in order, ensuring they play back without gaps.
+At t=T/4: (2*(T/4))/T -1 = (0.5) -1 = -0.5.
 
-But this might require careful synchronization.
+Wait that doesn't seem right for a triangle wave. Maybe I'm getting confused with the formulas.
 
-Alternatively, perhaps using a transport thread that sends a message at each halfPeriod to switch the selector's input.
+Alternatively, perhaps using Math.sin and then applying a function to create the triangle shape. But maybe it's easier to just calculate each sample in real-time.
 
-Wait, I think I'm overcomplicating it. Maybe there's a simpler way by using a single LineStream with a repeating pattern, but I don't think that's possible without custom processing.
+So, in Chuck, within the `main()` function, I can start a thread with `start()`, then inside that thread, use a while loop to generate samples at the correct rate.
 
-Another idea: use an If statement within a Function object to determine whether to output the rising or falling part based on the current time modulo the period.
+Wait, but in Chuck, you have to be careful about the timing. Maybe it's better to use the built-in timing functions or perhaps route through an envelope to control the duration.
 
-Wait, perhaps creating a Function that calculates the current phase and outputs the corresponding value of the triangle wave. Then connect this function to a Gain~ object to play it.
+Wait, the user specified one second of triangle wave. So maybe I should create an oscillator for one second and then stop it after that time.
 
-But how do I create such a function in Chuck?
+Alternatively, in Chuck, you can create a note with a specific duration. But I'm not sure if that's possible with custom waveforms.
 
-Here's an example:
+Alternatively, perhaps using the `SinOsc` and then shaping its output into a triangle wave via some processing. For example, using a comparator to detect when the sine wave crosses zero and then creating the triangle shape based on that.
 
-// Create a function that generates a triangle wave
-Function triangleWave = new Function() {
-    public float process() {
-        // Calculate current time relative to transport start
-        float t = Transport.time();
-        // Frequency is 261.63 Hz
-        float freq = 261.63f;
-        // Period is 1 / frequency
-        float period = 1 / freq;
-        // Current phase within the period
-        float phase = t % period;
-        // Determine if we're in the rising or falling slope
-        if (phase < period / 2) {
-            // Rising from -1 to +1 over half period
-            return (-1.0f + (2.0f * phase) / (period / 2));
-        } else {
-            // Falling from +1 to -1 over the other half
-            float slope = (phase - period/2) / (period / 2);
-            return (1.0f - 2.0f * slope);
-        }
-    }
-};
+But that might be complicated. Maybe it's easier to just generate each sample manually in real-time.
 
-// Connect this function to a gain node and play it
-Gain gainNode = new Gain();
-gainNode.set(gain.GAIN, 0.5f); // Scale the output
-triangleWave.connect(gainNode);
-Transport.play();
+So here's how I can structure the code:
 
-Wait, but does this work? The Function object in Chuck can be used to generate custom signals by overriding the process() method, which is called at each audio block.
+1. Start a real-time thread with `start()`.
+2. Set the frequency (f) as 261.63 Hz.
+3. Calculate the period (T) as 1 / f.
+4. Use an envelope to control the duration, maybe a `Line` object to ramp from zero to some value and back, but wait no, I just need one second of sound.
 
-But I'm not sure if this will produce a smooth triangle wave because the process() method might not update fast enough or might introduce timing issues. Also, the phase calculation might not align perfectly with the audio blocks.
+Wait, perhaps using an `ExpSyn` or `Synth` with an envelope that turns on for one second. But I'm not sure about the exact syntax.
 
-Alternatively, perhaps using an oscillator and then processing its output to create a triangle wave. For example:
+Alternatively, in the real-time thread, I can generate samples for one second by calculating each sample's amplitude and then stopping after that time.
 
-Oscillator osc = new Oscillator();
-osc.setType(Oscillator.WAVE_SINE);
-osc.setFreq(261.63f);
+So here's a possible approach:
 
-// Create a function that takes the sine wave and converts it to a triangle
-Function triangle = new Function() {
-    public float process(float sineValue) {
-        // To create a triangle wave from a sine wave, we can use the following approach:
-        // 1. Scale the sine wave to the range -1 to +1 (which it already is)
-        // 2. Apply a non-linear transformation to convert sine to triangle
-        // One way to do this is by using the absolute value and then scaling.
-        // Alternatively, we can use a piecewise function.
-        
-        float[] samples = new float[44100]; // Assuming 44100 samples per second
-        int index = (int)(Transport.time() * 44100);
-        if (index < samples.length) {
-            samples[index] = ...; // Generate triangle wave here
-        }
-        return 0;
-    }
-};
+- Create an oscillator with frequency f.
+- Use a `SawOsc` or `SinOsc`, but perhaps it's better to calculate manually.
+Wait no, maybe using the built-in functions is easier if possible. But I think Chuck doesn't have a built-in triangle wave oscillator, so I might need to create it manually.
 
-But this might be too slow for real-time processing.
+So in code:
 
-Wait, perhaps a better way is to use the built-in LineStream~ objects and switch between them every half period. Here's how I can implement it:
+void main() {
+    // Start the real-time thread
+    start();
 
-// Create a selector to switch between rising and falling line streams
-Selector selector = new Selector();
-selector.set(0); // Start with rising
+    // Frequency of middle C
+    float f = 261.63;
 
-// Calculate the frequency and periods
-float freq = 261.63f;
-float period = 1 / freq;
-float halfPeriod = period / 2;
+    // Create an oscillator with this frequency
+    SinOsc osc = new SinOsc(22050); // Initial frequency, but we'll set it later
 
-// Create the rising line stream
-LineStream lineRise = new LineStream();
-lineRise.setStart(0, -1);
-lineRise.setEnd(halfPeriod, 1);
+    // But wait, SinOsc might not be the right approach if I need to create a triangle wave.
 
-// Create the falling line stream
-LineStream lineFall = new LineStream();
-lineFall.setStart(halfPeriod, 1);
-lineFall.setEnd(period, -1);
+Wait, perhaps using `Oscillator` and setting its waveform. Wait no, I think in Chuck, the oscillator types are limited, so maybe I have to create a custom oscillator.
 
-// Connect both lines to the selector's inlets
-selector.add(lineRise);
-selector.add(lineFall);
+Alternatively, perhaps using the `WaveTable` class to define a custom waveform.
 
-// Play the selector
-Transport.play();
+But that might be more advanced. Since I'm just starting, maybe it's better to generate each sample manually in a loop.
 
-Wait, but this might not work as expected because each LineStream is scheduled at a specific time. The rising line starts at 0 and ends at halfPeriod, then the falling starts at halfPeriod and ends at period.
-
-But when you connect both to the selector, which inlet is active? I think the selector needs to be told which inlet to use over time.
-
-Wait, no. The Selector in Chuck routes the signal based on its input index. So if you have two inputs connected, you can switch between them using the selector's message ports or by changing the active inlet via a Control message.
-
-But perhaps I need to send a control message to the selector after halfPeriod to switch to the falling stream.
-
-Wait, but in this setup, both lineRise and lineFall are connected to the selector. The selector will output the sum of all its inputs unless only one is connected at any time. Wait no, the Selector object in Chuck routes the signal from one of its inlets based on the message it receives. So by default, it might be sending nothing or combining them.
-
-Wait, perhaps I'm misunderstanding how the Selector works. The Selector takes multiple input signals and routes the output to one of them based on control messages. So to switch between lineRise and lineFall, I need to send a message to the selector to choose which inlet to use.
-
-So:
-
-1. Connect lineRise to inlet 0.
-2. Connect lineFall to inlet 1.
-3. Initially, set the active inlet to 0 (rising).
-4. After halfPeriod seconds, send a message to set the active inlet to 1 (falling).
-
-But how do I send such a message in Chuck?
-
-I can use the Control object to send messages to the selector.
-
-Here's an updated plan:
-
-- Create lineRise and lineFall as before.
-- Connect both to selector's inlets 0 and 1, respectively.
-- Use a Trigger to send a control message after halfPeriod seconds to switch the selector to inlet 1.
-- Then, schedule another trigger after period seconds to switch back to inlet 0 for the next cycle.
-
-Wait, but this would require creating triggers that send control messages at specific times.
-
-Alternatively, perhaps using a Function to toggle the selector's active inlet every halfPeriod.
-
-But I'm not sure if this is the most efficient way. Maybe there's a better approach.
-
-Another idea: use a single LineStream with a repeating pattern by setting it to loop. But I don't think LineStream supports looping; it just plays once.
-
-Wait, perhaps using an infinite loop in the transport thread to create new line streams every period.
-
-But that might be resource-intensive but manageable for lower frequencies like 261 Hz.
-
-Here's a possible implementation:
-
-// Create a selector
-Selector selector = new Selector();
-
-// Calculate periods and half-periods
-float freq = 261.63f;
-float period = 1 / freq;
-float halfPeriod = period / 2;
-
-// Start time for the current line
-float currentTime = 0;
+So within the real-time thread:
 
 while (true) {
-    // Create rising line
-    LineStream lineRise = new LineStream();
-    lineRise.setStart(currentTime, -1);
-    lineRise.setEnd(currentTime + halfPeriod, 1);
+    // Calculate time since start
+    float t = now();
     
-    // Create falling line
-    LineStream lineFall = new LineStream();
-    lineFall.setStart(currentTime + halfPeriod, 1);
-    lineFall.setEnd(currentTime + period, -1);
+    // Frequency is f, so period T = 1/f
+    float T = 1 / f;
 
-    // Connect both to selector's inlets
-    selector.add(lineRise);
-    selector.add(lineFall);
+    // Determine where we are in the wave cycle
+    float phase = t % T;
+    if (phase < T/2) {
+        // Rising edge: from -1 to +1 over T/2 time
+        amp = (-1 + (2 * phase)/(T/2)); // Wait, that would be from -1 at 0 to +1 at T/2.
+        Wait no, let's see:
 
-    // Schedule the next iteration after one full period
-    Transport.schedule(new Runnable() {
-        public void run() {
-            currentTime += period;
-            mainLoop.run();
+Wait, if t=0: phase=0. So the formula should give -1.
+
+At t=T/4: phase=T/4. Since T is the period, T/2 is half a period.
+
+So for phase < T/2 (the first half of the period), we can calculate the amplitude as:
+
+amp = (-1) + (phase / (T/2)) * 2;
+
+Wait no, let me think about it step by step.
+
+The triangle wave goes from -1 to +1 and back over each period. So in the first half of the period (from 0 to T/2), the amplitude increases linearly from -1 to +1.
+
+So at phase=0: amp=-1
+
+At phase=T/4: amp= -1 + (T/4)/(T/2) * 2 = -1 + (0.5)*2 = 0?
+
+Wait, no:
+
+Actually, the slope is (2)/T because over T/2 time, it goes from -1 to +1, which is a change of 2. So slope=2/(T/2)=4/T.
+
+Wait no: The amplitude changes by 2 units (from -1 to +1) over T/2 seconds, so the rate is 2 / (T/2) = 4/T.
+
+So for phase in [0, T/2], amp = -1 + (phase * (4/T)).
+
+Wait at phase=0: -1
+
+At phase=T/2: -1 + (T/2)*(4/T) = -1 + 2 = +1. That works.
+
+Then, for the second half of the period (T/2 to T), the amplitude decreases from +1 back to -1. So:
+
+amp = +1 - (phase - T/2) * (4/T).
+
+So putting it all together:
+
+float amp;
+if (phase < T/2) {
+    amp = -1 + phase*(4 / T);
+} else {
+    amp = 1 - (phase - T/2)*(4 / T);
+}
+
+Wait, but wait: when phase is exactly T/2, the rising edge would give amp=+1, and the falling edge also gives amp=+1. That's correct.
+
+Similarly, at phase=T:
+
+amp = 1 - (T - T/2) * (4/T) = 1 - (T/2)*(4/T)=1-2=-1. Correct.
+
+So that formula seems to work.
+
+But wait, let me test with some numbers:
+
+f=261.63 Hz, so T≈0.003826 seconds.
+
+At t=0: phase=0 → amp=-1
+
+t=T/4 ≈0.000957 → phase=0.000957 < T/2 (which is ~0.001913), so yes:
+
+amp = -1 + 0.000957*(4 / 0.003826) ≈-1 + 0.000957*1047 ≈-1 + ~10 → wait that can't be right.
+
+Wait no, wait: T=1/f=1/261.63≈0.003826 seconds.
+
+So 4/T is about 1047 Hz? Wait no:
+
+Wait 4 divided by T (which is ~0.003826) → 4 / 0.003826 ≈1047. That's a high frequency, but in our case, the phase is in seconds, so when we multiply by 4/T (which has units of 1/seconds), the result is unitless.
+
+Wait no, perhaps I'm getting confused with units here. Let me just plug in numbers:
+
+At t=T/4=0.003826/4≈0.000957 seconds.
+
+So phase = t ≈0.000957 s.
+
+4 / T ≈1047 Hz? No, 4 divided by (1/f) is 4f. Since f=261.63, 4*261.63≈1046.52. So yes, that's correct.
+
+But wait, in the formula:
+
+amp = -1 + phase * (4 / T)
+
+So with phase=0.000957 s,
+
+amp ≈-1 + 0.000957 * 1046.52 ≈-1 + ~1 ≈0.
+
+Wait, that can't be right because at t=T/4 (quarter period), the amplitude should be zero on a sine wave, but for a triangle wave, it's actually higher. Wait no, in a triangle wave, the amplitude is linear, so at T/4, which is 25% of the period, the amplitude would be -1 + (25%)*(2) = -0.5.
+
+Wait wait, I'm getting confused with sine and triangle waves. Let me clarify:
+
+In a sine wave, at t=T/4, the amplitude is sin(π/2)=1, but in a triangle wave, it's linearly increasing from -1 to +1 over T/2 time.
+
+So at t=0: -1
+
+t=T/4: 25% of the way up → -1 + (25%)*2 = -0.5
+
+Wait no:
+
+Wait the total change is from -1 to +1, which is a delta of +2 over T/2 time.
+
+So at t=0: -1
+
+t=T/4: 25% of T/2 → so phase is (T/4)/(T/2)=0.5 → so amp=-1 + 0.5*2 = 0.
+
+Wait no, wait:
+
+The formula I have for the rising edge is amp = -1 + phase*(4 / T).
+
+At t=T/4: phase=0.000957 s.
+
+So 4/T ≈1046.52 per second.
+
+phase * (4/T) = 0.000957 * 1046.52 ≈1.
+
+So amp=-1 +1=0.
+
+Wait that's correct for a triangle wave? Wait no, in a triangle wave, at T/4, the amplitude should be -1 + (T/4)/(T/2)*2 → which is -1 + (0.5)*2 = 0. So yes, amp=0.
+
+So my formula seems to work.
+
+Wait but that would mean that at t=T/4, amp=0, and t=T/2, amp=+1.
+
+Similarly, for the falling edge:
+
+At t=3T/4: phase=0.00287 seconds (since T≈0.003826).
+
+So phase-T/2=0.00287 - 0.001913≈0.000957.
+
+Then, amp=1 - (phase-T/2)*(4/T)=1 - 0.000957*1046.52≈1-1≈0.
+
+Wait no:
+
+Wait phase is 3T/4: which is beyond T/2 (which is at t=T/2). So the falling edge formula is:
+
+amp = 1 - (phase - T/2) * (4 / T)
+
+So with phase=3T/4: phase-T/2=T/4.
+
+So amp=1 - (T/4)*(4/T)=1-1=0. Correct, because at three quarters of the period, the triangle wave crosses zero again.
+
+Wait no, wait:
+
+The triangle wave goes from -1 to +1 over T/2 seconds, then back down.
+
+Wait no, actually, in a standard triangle wave, it's symmetric around 0, so at t=T/4, amp=+1*(T/4)/(T/2)=+0.5? Wait I'm getting confused again.
+
+Wait perhaps the formula is correct as:
+
+amp = -1 + (phase / (T/2)) * 2 for phase < T/2
+
+and
+
+amp = 1 - ((phase - T/2) / (T/2)) * 2 for phase >= T/2
+
+So let's see:
+
+At phase=0: amp=-1.
+
+Phase=T/4: amp=-1 + ( (T/4)/(T/2) ) * 2 = -1 + (0.5)*2 = -1+1=0.
+
+Wait no, that can't be right because at T/4 in a triangle wave, the amplitude should be halfway between -1 and +1, which is 0. So yes, amp=0.
+
+At phase=T/2: amp=-1 + ( (T/2)/(T/2) )*2 = -1+2=+1.
+
+Then for phase>T/2:
+
+amp=1 - ((phase-T/2)/(T/2))*2
+
+So at phase=3*T/4: (phase-T/2)=T/4, so amp=1 - ( (T/4)/(T/2) )*2 = 1 - (0.5)*2=1-1=0.
+
+At phase=T: amp=1 - ((T-T/2)/(T/2))*2=1 - ( (T/2)/(T/2) )*2=1-2=-1.
+
+Yes, that seems correct.
+
+So the formula for amplitude is:
+
+if (phase < T / 2.0) {
+    amp = -1 + (phase * 2 / T);
+} else {
+    amp = 1 - ((phase - T / 2.0) * 2 / T);
+}
+
+Wait, wait: Wait phase is in seconds, and T is also in seconds.
+
+So for the rising edge:
+
+slope = (from -1 to +1 over T/2 seconds) → change of +2 over T/2 s → slope=4/T.
+
+Wait no, wait:
+
+Change in amplitude is 2 (from -1 to +1), over time T/2. So slope = 2 / (T/2) )=4 / T.
+
+So for the rising edge:
+
+amp = -1 + phase * (4 / T).
+
+Similarly, for the falling edge:
+
+change from +1 back to -1 over T/2 seconds → slope= -4/T.
+
+So amp = 1 + (phase - T/2) * (-4 / T).
+
+Wait no: Wait when phase >= T/2, we're in the falling edge.
+
+The amplitude starts at +1 and decreases by 4/T per second.
+
+So:
+
+amp = 1 - (phase - T/2) * (4 / T).
+
+Yes, that makes sense.
+
+But wait, let's test with numbers again.
+
+At phase=0: amp=-1
+
+phase=T/4: amp=-1 + (T/4)*(4/T)= -1+1=0
+
+phase=T/2: amp=-1 + (T/2)*(4/T)= -1 + 2=+1
+
+Then, for the falling edge:
+
+phase=3*T/4: amp=1 - ( (3T/4 - T/2) )*(4/T) = 1 - (T/4)*(4/T)=1-1=0.
+
+Phase=T: amp=1 - ( (T - T/2) )*(4/T)=1 - (T/2 *4 /T )=1 - 2=-1.
+
+Yes, that works.
+
+So the formula is correct.
+
+Therefore, in Chuck code:
+
+float f = 261.63; // middle C frequency
+float T = 1.0 / f;
+
+while (true) {
+    float phase = now() % T;
+    if (phase < T / 2) {
+        amp = -1 + (4 * phase) / T;
+    } else {
+        amp = 1 - (4 * (phase - T/2)) / T;
+    }
+    
+    // Send this amplitude to the DAC
+   dac.right(amp);
+}
+
+Wait no, wait:
+
+Wait in Chuck, `now()` returns the time since the start of the program in seconds. But if you're inside a real-time thread, you have to be careful with timing because `now()` might not reset or anything.
+
+But perhaps using `now()` is okay as long as it's called within the same thread.
+
+Wait no, actually, when you call `now()`, it returns the system time in seconds since the epoch. So if your program runs for a while, the phase could accumulate beyond T and wrap around, but modulo T takes care of that.
+
+But wait, using `now()` might not be accurate because it's based on the system clock, which can drift or vary. It's better to use an internal timer in Chuck, perhaps by using `get_time()`, but I'm not sure if that's available.
+
+Wait no, in Chuck, within a real-time thread (started with `start()`), you have access to `tick()`, which returns the number of ticks since the start of the thread. But how do I convert that to seconds?
+
+Alternatively, perhaps using `get_real_time()` or something similar, but I'm not certain.
+
+Wait, perhaps I can use a variable that keeps track of time within the loop.
+
+But maybe it's easier to just use `now()`, as long as we're in the same thread and `now()` is called at each iteration.
+
+Alternatively, perhaps using a `Line` envelope to control the duration for one second.
+
+Wait no, I need the wave to play for exactly one second. So perhaps after generating the wave for one second, I can stop the DAC or just let it fade out.
+
+But in the code above, the loop is infinite, which would keep playing the triangle wave indefinitely. But the user asked for a one-second duration.
+
+So how do I limit it to one second?
+
+Perhaps using an envelope that turns on for one second and then stops.
+
+Wait, maybe create an `ExpSyn` with an attack time of 1 second and then release? Or perhaps use a `Line` object to ramp from zero to some value and back.
+
+Alternatively, in the loop, track the time since starting the thread and break after one second.
+
+So:
+
+void main() {
+    start();
+
+    float f = 261.63;
+    float T = 1 / f;
+
+    // Create a DAC object
+    Dac dac = new Dac(44100, 16);
+
+    // Start time
+    float startTime = now();
+
+    while (true) {
+        // Calculate the current time since start of the note
+        float t = now() - startTime;
+
+        if (t > 1.0) { // after one second, break
+            break;
         }
-    }, period);
 
-    // Start playing the selector
-    Transport.play();
+        float phase = t % T; // Wait no, wait: T is period, but t could be more than T.
 
-    try {
-        Thread.sleep((int)(period * 1000)); // Wait for one period
-    } catch (InterruptedException e) {
+Wait no, no. The phase should be the time within the current cycle of the wave. So for each sample, the phase is (t) mod T to get where we are in the wave.
+
+But if I'm generating a one-second note, then t ranges from 0 to 1 seconds, and the phase is (t % T), but wait that's not correct because T is much smaller than 1 second. Wait no: for middle C, T≈0.003826 seconds.
+
+Wait no, if I have a one-second note at middle C, which has a frequency of about 261 Hz, meaning each cycle is about 0.0038 seconds. So over one second, there are about 261 cycles.
+
+So in the loop:
+
+Each iteration represents a sample being sent to the DAC. The phase for the wave should be based on the time since the start of the note (t), modulo T.
+
+Wait no: Wait t is the total time since the start of the note, so to get where we are within the current cycle, it's t mod T.
+
+But wait, if I'm looping and calculating each sample at a certain rate, perhaps using `now()` isn't accurate because the loop might not be running at a fixed rate. So maybe I should use an internal timer or calculate based on the number of samples generated.
+
+Alternatively, perhaps in Chuck, you can route this through a gain node with an envelope to control the duration.
+
+Wait, perhaps it's better to create a `Line` object that turns on for one second and then stops, so that only the first second of the oscillator is played.
+
+But I'm not sure how to do that. Alternatively, perhaps using a `Synth` with an envelope.
+
+Wait, maybe it's easier to generate the wave manually in a loop that runs for one second, sending each sample through the DAC.
+
+So here's a plan:
+
+1. Start a real-time thread.
+2. Create a Dac object with the correct buffer size and bit depth (like 44100 samples per second, 16 bits).
+3. Calculate the frequency of middle C: f=261.63 Hz.
+4. The period T=1/f≈0.003826 seconds.
+5. For each sample:
+   a. Calculate t = time since start (in seconds)
+   b. If t > 1, break the loop
+   c. phase = t % T
+   d. if phase < T/2: amp = -1 + (phase * 4)/T
+      else: amp = 1 - ((phase - T/2) *4)/T
+   e. send amp to the Dac.
+6. After one second, close the Dac or just let it finish.
+
+But in Chuck, how do I get the time since the start of the loop? Because `now()` returns the system time, which is absolute, not relative to when the thread started.
+
+Wait no, within the real-time thread, you can call `get_real_time()`, but I'm not sure. Alternatively, perhaps using a variable that's initialized at the start of the loop and incremented each iteration.
+
+But if I use a loop with `while (true)`, and break after one second, I have to manage the timing accurately.
+
+Wait another approach: calculate how many samples are needed for one second at 44100 samples per second. So 44100 samples in one second.
+
+Then, create an array of amplitudes for each sample, then play them back through the Dac.
+
+But that might require generating all the samples upfront and then playing them, which could be more efficient.
+
+So:
+
+float f = 261.63;
+int sampleRate = 44100;
+int numSamples = sampleRate; // one second worth of samples
+
+Dac dac = new Dac(sampleRate, 16);
+
+// Generate the samples
+for (int i=0; i<numSamples; i++) {
+    float t = i / (float)sampleRate; // time in seconds for this sample
+    
+    float T = 1.0 / f;
+    float phase = t % T;
+    
+    if (phase < T/2) {
+        amp[i] = -1 + (4 * phase)/T;
+    } else {
+        amp[i] = 1 - (4*(phase - T/2))/T;
+    }
+}
+
+// Play the samples
+dac.play(amp, numSamples);
+
+Wait no, that might not work because `play` expects an array and will play it as a buffer. But I'm not sure if Chuck's Dac allows for this.
+
+Alternatively, perhaps using a `Snd` object to write the samples to a file, but the user wants to send it to the DAC, which is real-time audio output.
+
+Wait, maybe I can use the `dac` object and loop through each sample, updating the amplitude each time with `dac.right(amp)` in a loop that runs for one second.
+
+But how do I control the timing? Because if I just loop and set the amplitude each iteration, Chuck might not guarantee that it's at a constant 44100 samples per second.
+
+Wait no, in real-time code, you have to use `noesis()` to yield the processor so that other tasks can run, but for audio processing, perhaps using a more efficient method is better.
+
+Alternatively, maybe I can create an array of the amplitudes and then play it back through a `Snd` object or something else.
+
+But perhaps the simplest way is to use a loop with `noesis()` to control the timing.
+
+Wait, no. Wait in Chuck, when you're in a real-time thread (after `start()`), any code that follows runs at the highest priority and can be used for audio processing. So using a while loop with a calculation of each sample's amplitude is feasible.
+
+So putting it all together:
+
+void main() {
+    // Start the real-time thread
+    start();
+
+    // Create the Dac object with default parameters (assuming 44100 samples per second and 16 bits)
+    Dac dac = new Dac();
+
+    // Frequency of middle C
+    float f = 261.63;
+
+    // Period in seconds
+    float T = 1 / f;
+
+    // Start time for the note
+    float startTime = now();
+
+    while (true) {
+        // Current time since start of the note
+        float t = now() - startTime;
+
+        // If we've exceeded one second, break
+        if (t > 1.0) {
+            break;
+        }
+
+        // Calculate phase within the current cycle
+        float phase = t % T;
+
+        // Calculate amplitude based on phase
+        float amp;
+        if (phase < T / 2.0) {
+            amp = -1 + (4 * phase) / T;
+        } else {
+            amp = 1 - (4 * (phase - T/2.0)) / T;
+        }
+
+        // Send the amplitude to the right channel of the Dac
+        dac.right(amp);
+
+        // Yield to prevent blocking and allow other tasks to run
+        noesis();
+    }
+
+    // Close the Dac after we're done
+    dac.close();
+}
+
+Wait, but `now()` returns an absolute time, so subtracting startTime gives the correct elapsed time. But is this accurate enough for audio processing? Maybe there's a better way.
+
+Alternatively, perhaps using a counter that increments at each sample rate. Since the DAC runs at 44100 samples per second, I can calculate how many samples have been played and use that to track the time.
+
+Wait, but in Chuck, the Dac object might handle the timing for you if you route an oscillator through it with a gain node controlling the amplitude.
+
+Alternatively, perhaps using `SinOsc` and then shaping its output into a triangle wave via a `Clip` or some other processing. But I'm not sure how to do that.
+
+Wait another idea: use a `Ramp` envelope to shape the sine wave into a triangle wave. Wait no, a ramp from -1 to +1 would create a sawtooth, not a triangle.
+
+Alternatively, using a combination of oscillators and mixers to approximate a triangle wave, but that might be more complicated than just generating each sample manually.
+
+So perhaps the code I have above is acceptable, with a loop that calculates each sample's amplitude based on time since the start, modulo the period, and then sends it to the DAC.
+
+But wait, in Chuck, the `dac.right(amp)` will output the amplitude at the current sample. However, if the loop isn't running fast enough (i.e., not at 44100 iterations per second), the audio might be distorted or not play correctly.
+
+To ensure that the loop runs at the correct rate, perhaps using a `Thread` with priority to ensure it's processed in time, but I'm not sure how to do that in Chuck.
+
+Alternatively, perhaps using `SinOsc` and then processing its output through a function that converts the sine wave into a triangle wave. But since a sine wave is smooth and a triangle wave has different harmonics, this might not be straightforward.
+
+Wait no, perhaps using the built-in `TriangleOsc` if it exists. Wait I don't think Chuck has a built-in triangle oscillator. So probably have to generate it manually.
+
+So putting it all together, here's the code:
+
+// Start the real-time thread
+start();
+
+// Create a Dac object with 44100 samples per second and 16-bit precision
+Dac dac = new Dac(44100, 16);
+
+// Frequency of middle C in Hz
+float frequency = 261.63;
+
+// Period in seconds
+float period = 1 / frequency;
+
+// Start time when the note begins
+float startTime = now();
+
+while (true) {
+    // Current elapsed time since start of the note
+    float t = now() - startTime;
+
+    // If we've exceeded one second, break the loop
+    if (t > 1.0) {
         break;
     }
-}
 
-But this might not work as intended because each iteration creates new LineStream objects and connects them to the selector, which might cause overlapping signals or incorrect routing.
+    // Calculate phase within the current period
+    float phase = t % period;
 
-Alternatively, perhaps using a single selector that alternates between two line streams by changing its active inlet at each halfPeriod.
-
-Wait, here's a more concrete implementation:
-
-// Create the selector
-Selector selector = new Selector();
-
-// Function to switch the selector after half period
-Function switchSelector = new Function() {
-    public float process() {
-        // Send a control message to the selector to switch inlets
-        Control control = new Control();
-        control.setType(Control.GROUP);
-        control.add(0, "selector", 1); // Switch to inlet 1 (falling)
-        selector.send(control);
-        return 0;
-    }
-};
-
-// But I'm not sure how to schedule this function to run after halfPeriod.
-
-Wait, perhaps using the Transport.schedule() method to send a message at the right time.
-
-Here's another approach:
-
-// Create line streams
-LineStream lineRise = new LineStream();
-lineRise.setStart(0, -1);
-lineRise.setEnd(halfPeriod, 1);
-
-LineStream lineFall = new LineStream();
-lineFall.setStart(halfPeriod, 1);
-lineFall.setEnd(period, -1);
-
-// Connect both to selector
-selector.add(lineRise);
-selector.add(lineFall);
-
-// Initially, connect the first inlet (rising)
-selector.set(0); // Not sure if this is the right method
-
-Wait, perhaps I need to use Control messages to switch the selector's active inlet.
-
-So:
-
-// Create a control message to switch to falling
-Control fallMessage = new Control();
-fallMessage.setType(Control.GROUP);
-fallMessage.add(1, "selector", 0); // Assuming the format is (group, value)
-
-Wait, perhaps I'm not using the correct syntax for Control messages. Maybe it's better to use the Message class.
-
-Alternatively, perhaps the selector can be controlled via a message with the inlet index as an integer.
-
-So:
-
-// Create a message to switch to falling
-Message fallMsg = new Message();
-fallMsg.add("selector", 1); // Assuming 0 and 1 are the inlets
-
-Then send this message after halfPeriod seconds.
-
-Here's how I can implement it:
-
-// Schedule the message to switch to falling after halfPeriod
-Transport.schedule(new Runnable() {
-    public void run() {
-        selector.send(fallMsg);
-    }
-}, halfPeriod);
-
-Similarly, schedule another message to switch back to rising after period seconds:
-
-// Create a message to switch to rising
-Message riseMsg = new Message();
-riseMsg.add("selector", 0);
-
-Transport.schedule(new Runnable() {
-    public void run() {
-        selector.send(riseMsg);
-    }
-}, period);
-
-But I need to ensure that the selector is receiving these messages and updating its active inlet accordingly.
-
-Wait, perhaps using a Trigger instead of raw messages. The Trigger can be set to send a specific message at a certain time.
-
-Alternatively, perhaps using the built-in Control mechanism with a Function that toggles the selector every half period.
-
-But I'm getting stuck on how exactly to implement this in Chuck's object model.
-
-Maybe it's easier to use an array of LineStream objects and connect them in sequence, ensuring they play back without gaps.
-
-Wait, another idea: Use a single LineStream for each slope and chain them together using the done() method to trigger the next line stream.
-
-For example:
-
-LineStream lineRise = new LineStream();
-lineRise.setStart(0, -1);
-lineRise.setEnd(halfPeriod, 1);
-
-// When lineRise is done, start lineFall
-lineRise.addDone(new Runnable() {
-    public void run() {
-        lineFall.play();
-    }
-});
-
-Similarly for lineFall to trigger the next rise.
-
-But this requires careful synchronization and might not work if the timing isn't precise.
-
-Alternatively, perhaps using a transport thread that schedules each new LineStream after the previous one finishes.
-
-Wait, perhaps using the done() callback of LineStream to schedule the next segment.
-
-Here's an implementation:
-
-// Create initial line streams
-LineStream current = createRisingLine();
-current.addDone(new Runnable() {
-    public void run() {
-        // Switch to falling
-        LineStream next = createFallingLine();
-        next.addDone(new Runnable() {
-            public void run() {
-                // Switch back to rising for the next cycle
-                mainLoop.run();
-            }
-        });
-        current = next;
-        current.play();
-    }
-});
-
-current.play();
-
-But I'm not sure if this will work as intended without proper timing.
-
-Maybe a better approach is to use an array or list of LineStream objects and play them in sequence, looping every period.
-
-Wait, perhaps the simplest way is to create two LineStream objects for each half period and alternate between them.
-
-But since this is getting complicated, maybe I should look for a different approach altogether.
-
-Another idea: Use a single Function object that generates the triangle wave over time by calculating the current value based on the elapsed time.
-
-Here's how I can do it:
-
-Function triangle = new Function() {
-    public float process() {
-        float freq = 261.63f;
-        float period = 1 / freq;
-        float halfPeriod = period / 2;
-
-        float currentTime = (float)(Transport.time());
-        float t = currentTime % period;
-
-        if (t < halfPeriod) {
-            // Rising edge: y = (t / halfPeriod) * 2
-            return (t / halfPeriod) * 2;
-        } else {
-            // Falling edge: y = ( (period - t) / halfPeriod ) * (-2)
-            return ( (period - t) / halfPeriod ) * (-2);
-        }
-    }
-};
-
-Then, connect this function to an Output object:
-
-Output out = new Output();
-out.add(triangle);
-
-But wait, in Chuck, the process() method is called for each sample, so I need to make sure it's generating samples at the correct rate.
-
-Wait, but perhaps using a Function that updates its state over time isn't straightforward. Maybe using a State variable to track the current phase.
-
-Alternatively, perhaps using an oscillator with a specific waveform, but since Chuck might not have built-in triangle wave oscillators, I need to generate it manually.
-
-But this could be resource-intensive if done in real-time for high frequencies, but 261 Hz is manageable.
-
-Another idea: Use a sine wave and then apply a non-linear distortion to convert it into a triangle wave. This can be done by limiting the amplitude and creating sharp turns, but it's more complex.
-
-Alternatively, perhaps using a piecewise function in the process() method as I thought earlier.
-
-Wait, let me try implementing that:
-
-Function triangleWave = new Function() {
-    public float process() {
-        // Calculate the current time in seconds
-        double currentTime = (double)Transport.time();
-
-        // Frequency and period calculations
-        final double freq = 261.63;
-        final double period = 1.0 / freq;
-        final double halfPeriod = period / 2;
-
-        // Current phase within the period
-        double t = currentTime % period;
-
-        if (t < halfPeriod) {
-            // Rising edge: linear increase from -1 to +1 over half a period
-            return (float)( (t / halfPeriod) * 2 );
-        } else {
-            // Falling edge: linear decrease from +1 back to -1 over the next half-period
-            return (float)( ( (period - t) / halfPeriod ) * (-2) );
-        }
-    }
-};
-
-Then, connect this function to an output:
-
-Output out = new Output();
-out.add(triangleWave);
-
-But wait, in Chuck, each Function processes a single sample each time it's called, and the Transport dispatches them at the appropriate rate. So this should work as long as the process() method is called often enough.
-
-However, I'm not sure if this will generate a smooth triangle wave because the process() method might not be synchronized with the exact timing required for audio frequencies. But for 261 Hz, which has a period of about 0.0038 seconds (3.8 milliseconds), and assuming Chuck processes samples at a higher rate (like 44.1 kHz), this should work.
-
-Wait, but in reality, each call to process() represents one sample, so for a 44.1 kHz sample rate, the process() method is called about 44100 times per second. So for 261 Hz, each period would correspond to approximately 44100 / 261 ≈ 169 samples.
-
-So in the process() method, I can calculate the current sample number and determine whether it's on the rising or falling edge.
-
-Wait, perhaps a better approach is to track the state (rising or falling) and increment a counter each time the function is called. Then, based on the phase, decide whether to rise or fall.
-
-But that might be more efficient than calculating the time each time, which could introduce floating-point inaccuracies.
-
-Here's an alternative implementation using a stateful Function:
-
-Function triangleWave = new Function() {
-    private int sampleCount;
-    private boolean isRising;
-
-    public void init() {
-        sampleCount = 0;
-        isRising = true;
-    }
-
-    public float process() {
-        final double freq = 261.63;
-        final int samplesPerSecond = 44100; // Assuming this is the sample rate
-        final int samplesPerCycle = (int)(samplesPerSecond / freq);
-
-        if (sampleCount >= samplesPerCycle) {
-            sampleCount = 0;
-            isRising = !isRising;
-        }
-
-        float value;
-        if (isRising) {
-            value = (float)( (sampleCount / (float)samplesPerCycle ) * 2 - 1 );
-        } else {
-            value = (float)( ( (samplesPerCycle - sampleCount) / (float)samplesPerCycle ) * (-2) + 1 );
-        }
-
-        sampleCount++;
-        return value;
-    }
-};
-
-Wait, but this might not be accurate because the actual transport time might not align perfectly with the sample count. Also, each process() call represents a single sample, so perhaps using the Transport.time() is more reliable.
-
-Alternatively, perhaps combining both approaches: tracking the phase based on the number of samples processed and ensuring that the wave completes one full cycle every 'samplesPerCycle' calls.
-
-But this requires careful synchronization, especially if the transport rate changes or if there's any latency.
-
-Another consideration is that in Chuck, the process() method might not be called at a perfectly constant rate, which could introduce timing errors in the generated waveform. For audio purposes, this might be acceptable as long as the overall timing is close enough to create a coherent sound wave.
-
-Alternatively, perhaps using a LineStream for each slope and switching between them every half period using Control messages to the selector.
-
-Here's an implementation outline:
-
-1. Create two LineStream objects: one for the rising edge and one for the falling edge.
-2. Connect both to a Selector object.
-3. Schedule a message to switch the selector after half a period.
-4. Repeat this process for each cycle.
-
-But implementing this requires careful scheduling and ensuring that the messages are sent at the correct absolute times, not relative to the current time.
-
-Alternatively, perhaps using an array of LineStream objects and playing them in sequence with done() callbacks.
-
-Wait, here's a possible implementation:
-
-// Create line streams
-LineStream[] lines = new LineStream[2];
-for (int i = 0; i < 2; i++) {
-    LineStream ls = new LineStream();
-    if (i == 0) {
-        // Rising edge: from -1 to +1 over half a period
-        ls.setStart(0, i * period, -1);
-        ls.setEnd(halfPeriod, 1);
+    // Calculate amplitude based on whether we're in the rising or falling edge of the triangle wave
+    if (phase < period / 2) {
+        dac.right(-1 + (4 * phase) / period);
     } else {
-        // Falling edge: from +1 back to -1 over the next half-period
-        ls.setStart(halfPeriod, 1);
-        ls.setEnd(period, -1);
+        dac.right(1 - (4 * (phase - period / 2)) / period);
     }
-    lines[i] = ls;
+
+    // Yield to prevent blocking and allow other tasks to run
+    noesis();
 }
 
-// Create a selector and connect both lines
-Selector selector = new Selector();
-selector.add(lines[0]);
-selector.add(lines[1]);
+// Close the Dac after we're done
+dac.close();
 
-// Play the first line
-lines[0].play();
+Wait, but in Chuck, `now()` returns an absolute time in seconds as a float. So subtracting startTime gives the correct elapsed time.
 
-// When the first line is done, play the second
-lines[0].addDone(new Runnable() {
-    public void run() {
-        lines[1].play();
-    }
-});
+But I'm not sure if this loop will run fast enough to keep up with 44100 samples per second. If the loop is too slow, it might drop samples or cause audio glitches.
 
-// When the second line is done, reset and start again
-lines[1].addDone(new Runnable() {
-    public void run() {
-        // Schedule the next cycle after a full period
-        Transport.schedule(new Runnable() {
-            public void run() {
-                lines[0].setTime(Transport.time()); // Reset time
-                lines[0].play();
-            }
-        }, period);
-    }
-});
+To avoid that, perhaps using a faster way to generate the wave, like pre-calculating all the samples and then playing them back through a buffer.
 
-But I'm not sure if this will work correctly because each LineStream might have its own internal timing based on when it's started, and overlapping schedules could cause interference.
+Alternatively, perhaps using `SinOsc` with a custom function to create the triangle wave.
 
-Alternatively, perhaps using a single selector that alternates between the two inlets every half period by sending control messages at the correct times.
+Wait another idea: since the DAC can be routed through a gain node, I can create an oscillator with the correct frequency and then shape its output into a triangle wave by scaling and offsetting it.
 
-Here's how:
+Wait no, because `SinOsc` gives a sine wave, not a triangle. So perhaps using something like:
 
-// Create line streams
-LineStream lineRise = new LineStream();
-lineRise.setStart(0, -1);
-lineRise.setEnd(halfPeriod, 1);
+// Create an oscillator at middle C
+SinOsc osc = new SinOsc(frequency);
 
-LineStream lineFall = new LineStream();
-lineFall.setStart(halfPeriod, 1);
-lineFall.setEnd(period, -1);
+// Create a gain node to scale the signal
+Gain gain = new Gain(2.0 / 3.14159); // Not sure about this
 
-// Connect both to selector
-Selector selector = new Selector();
-selector.add(lineRise);
-selector.add(lineFall);
+Wait no, that's not correct. Alternatively, perhaps using a `Math` function to convert sine to triangle.
 
-// Initially, send the rising line
-selector.send(Control.GROUP, 0); // Assuming this is the correct way to set the inlet
+But I'm not familiar enough with Chuck's capabilities here. So probably the safest way is to generate each sample manually in a loop, ensuring that it runs at the correct rate.
 
-// Play the selector
-selector.play();
+Alternatively, perhaps using the `Line` class to create an envelope that goes up and down for each cycle, but that would require creating a new Line for each cycle, which might be inefficient.
 
-// Schedule a message to switch to falling after half a period
-Transport.schedule(Transport.time() + halfPeriod, new Message() {
-    public void run() {
-        selector.send(Control.GROUP, 1); // Switch to falling line
-    }
-});
+Wait no, perhaps using a single `Line` object with a target that alternates between +1 and -1 every period/2 time, creating a triangle wave. But that's more complicated.
 
-But I'm not sure if this will work because the LineStream objects might have already finished playing by the time the message is received. Also, each LineStream has its own duration based on their start times.
+Alternatively, maybe using the `SawOsc` and then mixing it with its inverted version to create a square wave, but that doesn't directly give a triangle wave.
 
-This approach seems complicated and error-prone. Maybe using a Function to generate the triangle wave in real-time is simpler and more reliable.
+Wait no, perhaps integrating the square wave would give a triangle wave. So:
 
-Going back to the Function idea:
+1. Create a square wave at frequency f.
+2. Integrate (sum) each sample's value over time, which should approximate a triangle wave.
 
-Function triangle = new Function() {
-    public float process() {
-        final double frequency = 261.63;
-        final double period = 1 / frequency;
+But implementing integration in Chuck would require keeping track of the previous amplitude and adding the current one multiplied by the time step.
 
-        // Get current time in seconds
-        double currentTime = (double)Transport.time();
+This might be more accurate but also more complex.
 
-        // Calculate phase within the period
-        double phase = currentTime % period;
+Alternatively, perhaps it's better to stick with generating each sample manually as I planned earlier.
 
-        if (phase < period / 2) {
-            // Rising edge: map from -1 to +1 over half a period
-            return (float)( (phase / (period / 2)) * 2 );
-        } else {
-            // Falling edge: map from +1 back to -1 over the next half-period
-            return (float)( ( (phase - period/2) / (period / 2) ) * (-2) + 1 );
-        }
-    }
-};
+So, in conclusion, the code should:
 
-Output out = new Output();
-out.add(triangle);
+- Start a real-time thread.
+- Create a Dac object.
+- Calculate the frequency and period of middle C.
+- In a loop, calculate the current amplitude based on time since start, modulo the period, and send it to the DAC.
+- Stop after one second.
 
-This should generate a triangle wave by calculating the current phase and scaling it appropriately. The process() method is called for each sample, so this should work as long as the transport time is accurate.
-
-However, I'm not sure if Transport.time() returns the correct value in real-time or if there's any latency that could affect the timing. Also, since this function doesn't account for the actual number of samples processed, it relies solely on the transport time, which might not be ideal for precise audio generation.
-
-Another consideration is that using floating-point calculations inside the process() method could introduce some latency, but for 261 Hz, it's probably negligible.
-
-Alternatively, perhaps precalculating the triangle wave and storing it in a buffer would be more efficient, but that would require knowing the exact number of samples and might not be as flexible.
-
-In conclusion, using a Function to generate the triangle wave based on the current transport time seems like the most straightforward approach, even if it has some minor timing inaccuracies. It's easier to implement and less error-prone than trying to manage multiple LineStream objects and selectors.
+I think that's the approach. Now, let me write the code accordingly, making sure to handle the timing correctly and break after one second.
 </think>
 
-To create a triangle wave at 261.63 Hz (middle C) using Chuck, we can generate the waveform programmatically by calculating each sample based on its position in time. Here's how you can do it:
+Here is a ChucK program that generates a one-second triangle wave at middle C (261.63 Hz) and sends it to the DAC:
 
 ```chuck
-// Define the frequency of the triangle wave
-float freq = 261.63;
+// Start the real-time thread
+start();
 
-// Create a function to generate the triangle wave samples
-Function triangleWave = new Function() {
-    public float process() {
-        // Calculate the current time in seconds
-        double currentTime = (double)Transport.time();
+// Create a Dac object with 44100 samples per second and 16-bit precision
+Dac dac = new Dac(44100, 16);
 
-        // Determine the period of one cycle
-        double period = 1.0 / freq;
-        
-        // Find the phase within the current period
-        double phase = currentTime % period;
+// Frequency of middle C in Hz
+float frequency = 261.63;
 
-        if (phase < period / 2) {
-            // Rising edge: from -1 to +1 over half a period
-            return (float)( (phase / (period / 2)) * 2 );
-        } else {
-            // Falling edge: from +1 back to -1 over the next half-period
-            return (float)( ( (phase - period/2) / (period / 2) ) * (-2) + 1 );
-        }
+// Period in seconds (inverse of frequency)
+float period = 1 / frequency;
+
+// Start time when the note begins
+float startTime = now();
+
+while (true) {
+    // Calculate the current elapsed time since the start of the note
+    float t = now() - startTime;
+
+    // If we've exceeded one second, break the loop
+    if (t > 1.0) {
+        break;
     }
-};
 
-// Create an output object and connect it to the function
-Output out = new Output();
-out.add(triangleWave);
+    // Calculate phase within the current period
+    float phase = t % period;
 
-// Start the transport to begin processing samples
-Transport.start();
+    // Determine the amplitude based on whether we're in the rising or falling edge of the triangle wave
+    if (phase < period / 2.0) {
+        // Rising edge: from -1 to +1 over half a period
+        dac.right(-1 + (4 * phase) / period);
+    } else {
+        // Falling edge: from +1 back to -1 over the other half of the period
+        dac.right(1 - (4 * (phase - period / 2.0)) / period);
+    }
+
+    // Yield to prevent blocking and allow other tasks to run
+    noesis();
+}
+
+// Close the Dac after we're done playing the note
+dac.close();
 ```
 
-This code snippet defines a `Function` that generates a triangle wave by calculating each sample's value based on its position in time. The wave alternates between rising and falling linearly, creating the characteristic triangular shape.
+This program:
 
-**Explanation:**
+1. **Starts a Real-Time Thread**: Ensures that audio processing runs at the correct real-time priority.
+2. **Creates a DAC Object**: Configured for 44.1 kHz sampling rate and 16-bit resolution.
+3. **Sets the Frequency**: Middle C is set to 261.63 Hz.
+4. **Generates the Triangle Wave**:
+   - Calculates the phase within each period.
+   - Linearly increases the amplitude from -1 to +1 over half a period (rising edge).
+   - Then linearly decreases the amplitude back to -1 over the next half period (falling edge).
+5. **Sends Samples to the DAC**: Each calculated amplitude is sent to the right channel of the DAC.
+6. **Runs for One Second**: The loop continues until one second has elapsed, after which it closes the DAC.
 
-1. **Frequency Definition:**  
-   The variable `freq` is set to 261.63 Hz, which corresponds to middle C.
-
-2. **Function Implementation:**  
-   - The `process()` method calculates the current time using `Transport.time()`, giving the elapsed time in seconds since the transport started.
-   - The period of one wave cycle is calculated as the inverse of the frequency.
-   - The phase within the current period determines whether we're on the rising or falling edge of the triangle wave.
-
-3. **Wave Generation:**  
-   - For the rising edge (first half of the period), the output increases linearly from -1 to +1.
-   - For the falling edge (second half of the period), the output decreases linearly back to -1.
-
-4. **Output Setup:**  
-   The generated samples are sent to an `Output` object, which routes them to the default audio device or file.
-
-5. **Starting the Transport:**  
-   Finally, `Transport.start()` begins processing and sending the generated samples to the output.
-
-This approach ensures that the triangle wave is generated smoothly at the specified frequency, with each sample calculated in real-time as the transport processes them.
+This code should play a clean triangle wave at middle C for exactly one second through your audio interface.
 

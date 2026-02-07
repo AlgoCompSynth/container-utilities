@@ -1,50 +1,126 @@
 Thinking...
-The user asks: "Please write an R program using data.table to read a csv file 'offices.csv' into a data.table called 'offices'." So the answer is straightforward: load data.table library and read the CSV file into a data.table named offices. Possibly show the code:
+The user wants an R program using data.table to do specified tasks. Provide code: load data.table, read CSV, join with inner join on employee_id, write to CSV. Provide explanation, maybe full script with comments.
 
-```R
+Edge cases: ensure columns are character, read as strings, maybe use fread.
+
+Also can include specifying header, stringsAsFactors=FALSE, but fread handles. Use setkey for join.
+
+Example code:
+
 library(data.table)
-offices <- fread("offices.csv")
-```
+offices <- fread('offices.csv', colClasses = c(employee_id='character', work_address='character'))
+homes <- fread('homes.csv', colClasses = c(employee_id='character', home_address='character'))
 
-Optionally mention the file path. Maybe show error handling: if file not found. But likely just provide the snippet. Also mention that data.table's fread is fast. Provide some minimal program: reading file and maybe print head.
+setkey(offices, employee_id)
+setkey(homes, employee_id)
 
-Thus answer: simple R script.
+result <- offices[homes, nomatch=0, .(employee_id, work_address, home_address)]
 
-Ok.
+or equivalently: result <- merge(offices, homes, by='employee_id', all=FALSE, sort=FALSE). Write:
+
+fwrite(result, 'result.csv')
+
+Better to ensure order or drop extra columns.
+
+Also might show example of reading if not specified: set names.
+
+The user likely expects a script. Provide full code.
+
+We can add comments.
+
+Also mention install.packages if missing.
+
+Let's produce answer: R script with step-by-step.
+
+Make sure to load data.table, read, set key, join, write. Use .SD or .() as needed.
+
+Add 'result' name. Provide final output. Provide error handling.
+
+Write final answer.
 ...done thinking.
 
-Here’s a minimal, ready‑to‑run R script that loads the **data.table** package and reads `offices.csv` into a data.table named `offices`.
+Below is a **stand‑alone R script** that does exactly what you asked for.  
+Save it to a file (e.g. `join_offices_homes.R`) and run it from the terminal or R console.
 
 ```r
 #!/usr/bin/env Rscript
+# ------------------------------------------------------------------
+#  join_offices_homes.R
+#
+#  Reads two CSV files, joins them on employee_id (inner join),
+#  and writes the result to result.csv.
+# ------------------------------------------------------------------
 
 # ------------------------------------------------------------------
-#  Load the data.table package (install it first if you haven't)
+#  0. Load data.table (install if necessary)
 # ------------------------------------------------------------------
 if (!requireNamespace("data.table", quietly = TRUE)) {
-  install.packages("data.table")
+  install.packages("data.table", repos = "https://cloud.r-project.org")
 }
 library(data.table)
 
 # ------------------------------------------------------------------
-#  Read the CSV file into a data.table called `offices`
+#  1. Read offices.csv
 # ------------------------------------------------------------------
-#  Change the path if your file is in a different directory.
-#  Example: offices <- fread("path/to/offices.csv")
-offices <- fread("offices.csv")
+# Use fread for fast, memory‑efficient loading.
+# Specify column types explicitly so everything stays as text.
+offices <- fread(
+  file   = "offices.csv",
+  colClasses = list(
+    employee_id = "character",
+    work_address = "character"
+  )
+)
 
 # ------------------------------------------------------------------
-#  (Optional) Quick sanity check – print the first few rows
+#  2. Read homes.csv
 # ------------------------------------------------------------------
-print(head(offices))
+homes <- fread(
+  file   = "homes.csv",
+  colClasses = list(
+    employee_id = "character",
+    home_address = "character"
+  )
+)
+
+# ------------------------------------------------------------------
+#  3. Join the two tables on employee_id (inner join only)
+# ------------------------------------------------------------------
+# Setting keys allows for a fast binary join.
+setkey(offices, employee_id)
+setkey(homes,   employee_id)
+
+# Perform the join.  The 'nomatch = 0L' argument ensures
+# that only rows present in BOTH tables are kept.
+result <- offices[homes, nomatch = 0L, .(
+  employee_id,
+  work_address,
+  home_address
+)]
+
+# ------------------------------------------------------------------
+#  4. Write the joined table to result.csv
+# ------------------------------------------------------------------
+fwrite(result, file = "result.csv", row.names = FALSE)
+
+# ------------------------------------------------------------------
+#  Done
+# ------------------------------------------------------------------
+cat("Joined table written to 'result.csv'.\n")
 ```
 
-### What this does
+### How it works
 
-1. **Loads data.table** – if the package is missing it installs it automatically.
-2. **Reads the CSV** – `fread()` is the fastest, most flexible CSV reader in R and automatically returns a `data.table`.
-3. **Creates the object `offices`** – this is the variable you’ll use in subsequent analysis.
-4. **Prints the first rows** – handy to confirm that the file was read correctly (you can remove this line in a production script).
+| Step | What the code does |
+|------|--------------------|
+| **0** | Loads `data.table`; installs it if it isn’t already available. |
+| **1** | Reads `offices.csv` into a data.table called `offices`. `colClasses` forces both columns to be character strings. |
+| **2** | Reads `homes.csv` into a data.table called `homes` with the same type safety. |
+| **3** | Sets `employee_id` as the key on each table, then performs an **inner join** (`nomatch = 0L`). The result contains only the common `employee_id`s and the three required columns. |
+| **4** | Writes the resulting data.table to `result.csv` using `fwrite`, which is faster than `write.csv`. |
 
-Just save the code above to a file (e.g., `read_offices.R`), make it executable (`chmod +x read_offices.R`) and run it, or copy the two `library(data.table)` / `offices <- fread(...)` lines into your own R session.
+> **Tip** – If your CSV files contain a header row (as usual), `fread` automatically uses those names.  
+> If you ever need a *left* or *right* join, replace `nomatch = 0L` with `nomatch = NA` (left) or swap the tables (right).
+
+Enjoy the fast, memory‑efficient data manipulation that `data.table` offers!
 
