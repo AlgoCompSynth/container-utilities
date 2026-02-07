@@ -1,4 +1,1 @@
-Please create a Raspberry Pi Pico C/C++ SDK project to build a C program.
-The C program must send a continuous sine wave pitched at middle C to
-an attached 24-bit I2S DAC. The GPIO pins for the I2S DAC must be given
-as #define statements. Use a PIO to send the data to the I2S pins.
+Please create a Raspberry Pi Pico C/C++ SDK project to build a C program.  The C program must send a continuous sine wave pitched at middle C to an attached 24-bit I2S DAC. The GPIO pins for the I2S DAC must be given as #define statements. Use a PIO to send the data to the I2S pins.
