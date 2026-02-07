@@ -52,12 +52,10 @@ pushd ../2-terminal-setup/ > /dev/null
   distrobox enter "$DBX_CONTAINER_NAME" -- ./terminal_setup.sh
 popd > /dev/null
 
-echo "Setting up ollama and aider"
+echo "Setting up ollama"
 distrobox enter "$DBX_CONTAINER_NAME" -- ./install_ollama.sh
-distrobox enter "$DBX_CONTAINER_NAME" -- ./install_aider.sh
 
 echo "** Exporting ollama and aider **"
-distrobox enter "$DBX_CONTAINER_NAME" -- distrobox-export --bin $DBX_CONTAINER_DIRECTORY/.local/bin/aider
 distrobox enter "$DBX_CONTAINER_NAME" -- distrobox-export --bin /usr/local/bin/ollama
 echo ""
 
