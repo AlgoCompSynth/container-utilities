@@ -11,6 +11,7 @@ for model in \
   codellama:34b-instruct-q4_0 \
   granite-code:34b-base-q4_0 \
   granite-code:34b-instruct-q4_0 \
+  deepseek-coder:33b-instruct-q4_0 \
   wizardcoder:33b-v1.1-q4_0 \
   qwen3-vl:32b-thinking-q4_K_M \
   qwen3-vl:32b-instruct-q4_K_M \
