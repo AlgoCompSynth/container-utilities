@@ -11,7 +11,6 @@ for model in \
   codellama:34b-instruct-q4_0 \
   granite-code:34b-base-q4_0 \
   granite-code:34b-instruct-q4_0 \
-  wizardcoder:33b-v1.1-q4_0 \
   qwen3-coder:30b-a3b-q4_K_M \
   glm-4.7-flash:q4_K_M \
   devstral-small-2:24b-instruct-2512-q4_K_M \
