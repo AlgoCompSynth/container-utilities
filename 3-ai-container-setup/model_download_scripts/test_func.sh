@@ -4,7 +4,7 @@ test_model() {
 
   echo ""
 
-  for suffix in arduino pico-sdk ck R
+  for suffix in tdd arduino pico-sdk ck R
   do
     echo "checking $model with $suffix"
     /usr/bin/time ollama run $model \
