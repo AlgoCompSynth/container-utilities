@@ -1,0 +1,1 @@
+Please create an Arduino project to build a program. The program must send a continuous sine wave pitched at middle C to an attached 24-bit I2S DAC. The GPIO pins for the I2S DAC must be given as #define statements.
